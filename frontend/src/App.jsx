@@ -47,7 +47,7 @@ function App() {
       setTimeout(() => setLoadingText("Creating exam-ready notes..."), 2500);
       setTimeout(() => setLoadingText("Formatting formulas and answers..."), 4000);
 
-      const response = await fetch("http://127.0.0.1:5000/upload", {
+      const response = await fetch("https://ai-notes-summarizer-vfus.onrender.com/upload", {
         method: "POST",
         body: formData,
       });
