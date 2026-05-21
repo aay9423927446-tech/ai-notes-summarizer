@@ -19,6 +19,9 @@ function App() {
 
   const resultRef = useRef(null);
 
+  const markdownPlugins = [remarkMath, remarkGfm];
+  const rehypePlugins = [rehypeKatex];
+
   const handleFileChange = (e) => {
     setPdfFile(e.target.files[0]);
   };
@@ -63,13 +66,9 @@ function App() {
     let cleaned = text;
 
     cleaned = cleaned.replace(/\n{4,}/g, "\n\n\n");
-
     cleaned = cleaned.replace(/\|\s*\n\s*\|/g, "|\n|");
-
     cleaned = cleaned.replace(/\n\s*\|\s*\n/g, "\n");
-
     cleaned = cleaned.replace(/\n\s*\|\s*$/gm, "");
-
     cleaned = cleaned.replace(/^\s*\|\s*$/gm, "");
 
     return cleaned;
@@ -102,7 +101,7 @@ function App() {
       setResult("Please wait while AI creates your notes.");
 
       setTimeout(() => setLoadingText("Extracting important concepts..."), 1200);
-      setTimeout(() => setLoadingText("Creating exam-ready notes..."), 2500);
+      setTimeout(() => setLoadingText("Creating exam-ready output..."), 2500);
       setTimeout(
         () => setLoadingText("Large PDFs may take 1–3 minutes. Please wait..."),
         4000
@@ -146,9 +145,10 @@ function App() {
     }
 
     const element = resultRef.current;
+    const isFormulaSheet = outputType === "Formula Sheet";
 
     const canvas = await html2canvas(element, {
-      scale: 1.2,
+      scale: isFormulaSheet ? 1.1 : 1.2,
       useCORS: true,
       backgroundColor: "#ffffff",
       windowWidth: element.scrollWidth,
@@ -159,16 +159,16 @@ function App() {
         if (clonedElement) {
           clonedElement.style.background = "#ffffff";
           clonedElement.style.color = "#1e293b";
-          clonedElement.style.width = "1000px";
+          clonedElement.style.width = isFormulaSheet ? "1450px" : "1000px";
           clonedElement.style.borderRadius = "0";
         }
       },
     });
 
-    const imgData = canvas.toDataURL("image/jpeg", 0.72);
+    const imgData = canvas.toDataURL("image/jpeg", 0.74);
 
     const pdf = new jsPDF({
-      orientation: "p",
+      orientation: isFormulaSheet ? "l" : "p",
       unit: "mm",
       format: "a4",
       compress: true,
@@ -229,6 +229,74 @@ function App() {
     if (fileInput) {
       fileInput.value = "";
     }
+  };
+
+  const renderNormalOutput = () => {
+    return (
+      <div className="markdown-output">
+        <ReactMarkdown
+          remarkPlugins={markdownPlugins}
+          rehypePlugins={rehypePlugins}
+        >
+          {result}
+        </ReactMarkdown>
+      </div>
+    );
+  };
+
+  const renderFormulaSheetOutput = () => {
+    const parts = result.split(/(?=^## CARD\s*\d*[:.-])/m);
+    const intro = parts[0] || "";
+    const cards = parts.slice(1);
+
+    const quickIndex = cards.findIndex((card) =>
+      card.toLowerCase().includes("quick formulas")
+    );
+
+    let formulaCards = cards;
+    let quickSection = "";
+
+    if (quickIndex !== -1) {
+      quickSection = cards.slice(quickIndex).join("\n\n");
+      formulaCards = cards.slice(0, quickIndex);
+    }
+
+    return (
+      <div className="formula-sheet-output">
+        <div className="formula-sheet-title">
+          <ReactMarkdown
+            remarkPlugins={markdownPlugins}
+            rehypePlugins={rehypePlugins}
+          >
+            {intro}
+          </ReactMarkdown>
+        </div>
+
+        <div className="formula-card-grid">
+          {formulaCards.map((card, index) => (
+            <div className={`formula-card card-color-${(index % 6) + 1}`} key={index}>
+              <ReactMarkdown
+                remarkPlugins={markdownPlugins}
+                rehypePlugins={rehypePlugins}
+              >
+                {card}
+              </ReactMarkdown>
+            </div>
+          ))}
+        </div>
+
+        {quickSection && (
+          <div className="quick-formula-strip">
+            <ReactMarkdown
+              remarkPlugins={markdownPlugins}
+              rehypePlugins={rehypePlugins}
+            >
+              {quickSection}
+            </ReactMarkdown>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -301,20 +369,20 @@ function App() {
       </div>
 
       <div className="result-box">
-        <div className="pdf-content" ref={resultRef}>
+        <div
+          className={`pdf-content ${
+            outputType === "Formula Sheet" ? "formula-sheet-mode" : ""
+          }`}
+          ref={resultRef}
+        >
           <div className="pdf-header">
             <h2>ExamEase AI Notes</h2>
             <p>{outputType} · Generated from your uploaded PDF</p>
           </div>
 
-          <div className="markdown-output">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath, remarkGfm]}
-              rehypePlugins={[rehypeKatex]}
-            >
-              {result}
-            </ReactMarkdown>
-          </div>
+          {outputType === "Formula Sheet"
+            ? renderFormulaSheetOutput()
+            : renderNormalOutput()}
         </div>
       </div>
     </div>

@@ -21,7 +21,7 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 MODEL_NAME = "llama-3.1-8b-instant"
 
-# Balanced settings: speed + quality
+# Balanced settings
 MAX_CHUNK_CHARS = 3500
 MAX_CHUNKS = 6
 
@@ -29,13 +29,14 @@ MAX_CHUNKS = 6
 COMMON_RULES = """
 You must create clean exam-ready content that will be rendered as Markdown and downloaded as a PDF.
 
-GENERAL FORMAT RULES:
+GENERAL RULES:
 - Output must be valid Markdown.
-- Use clean headings.
-- Keep language simple and exam-oriented.
-- Do not write unnecessary long paragraphs.
+- Keep language simple and student-friendly.
+- Use proper headings.
 - Do not generate broken Markdown.
-- Do not repeat the same content again and again.
+- Do not repeat the same points again and again.
+- Do not add irrelevant formulas from other subjects.
+- Only use formulas, concepts, examples, and diagrams that match the uploaded PDF content.
 
 BOX FORMAT:
 Use blockquotes only when needed.
@@ -51,7 +52,7 @@ For diagrams:
 
 TABLE RULES:
 - Use proper Markdown tables only when the content is truly tabular.
-- Do not write a table in one single line.
+- Never write a table in one single line.
 - Every table row must be on a separate line.
 - Every table row must start with | and end with |.
 - Always keep a blank line before and after a table.
@@ -59,20 +60,14 @@ TABLE RULES:
 - Do not put long formulas inside table cells.
 - Inside table cells, use only short inline math.
 - If a formula is long, write "See formula below" in the table cell and put the full formula below the table.
-- Do not leave incomplete table rows like "| Momentum |".
+- Do not leave incomplete rows like "| Momentum |".
 
 Correct table format:
 
-| Quantity | Operator | Meaning |
+| Topic | Meaning | Exam Use |
 |---|---|---|
-| Position | $\\hat{x} = x$ | Measures position |
-| Momentum | See formula below | Measures momentum |
-
-Then write long formulas separately:
-
-$$
-\\hat{p} = -i\\hbar \\frac{\\partial}{\\partial x}
-$$
+| Logic Gate | Basic digital circuit | Asked in 2-mark questions |
+| Boolean Algebra | Algebra for binary variables | Used in simplification |
 
 EQUATION RULES:
 - Use KaTeX-compatible LaTeX.
@@ -88,16 +83,11 @@ FINAL CHECK:
 - No lone $ symbols.
 - No one-line tables.
 - No broken table rows.
-- No long equations inside tables.
 - No raw LaTeX outside $...$ or $$...$$.
 """
 
 
 def create_chunks_from_pdf(file_path):
-    """
-    Reads PDF page by page and creates chunks without storing full PDF text.
-    This prevents Render memory crashes.
-    """
     chunks = []
     current_chunk = ""
 
@@ -124,69 +114,85 @@ def create_chunks_from_pdf(file_path):
     return chunks
 
 
-# -----------------------------
-# DIRECT PROMPTS FOR SMALL PDFs
-# -----------------------------
-
 def create_prompt(text, output_type):
     if output_type == "Summary":
         return create_summary_prompt(text)
 
-    elif output_type == "Important Questions":
+    if output_type == "Important Questions":
         return create_important_questions_prompt(text)
 
-    elif output_type == "MCQs":
+    if output_type == "MCQs":
         return create_mcq_prompt(text)
 
-    elif output_type == "Formula Sheet":
+    if output_type == "Formula Sheet":
         return create_formula_sheet_prompt(text)
 
-    elif output_type == "Viva Questions":
+    if output_type == "Viva Questions":
         return create_viva_prompt(text)
 
-    else:
-        return create_summary_prompt(text)
+    return create_summary_prompt(text)
 
 
 def create_summary_prompt(text):
     return f"""
 You are an exam preparation assistant.
 
-Create a proper SUMMARY from the PDF content.
+Create a LONG DETAILED SUMMARY from the uploaded PDF content.
 
-The output must be a study summary, not a question bank.
+IMPORTANT:
+- This must be a proper study-notes summary.
+- It should be detailed enough to become at least 5 pages when downloaded as PDF.
+- Do not make it short.
+- Do not make it look like a question bank.
+- Explain each topic clearly in exam-oriented language.
 
 STRICT SUMMARY FORMAT:
+
+# Detailed Summary Notes
 
 ## UNIT / TOPIC NAME
 
 ### 1. Introduction
-- Give a short introduction.
+Write a proper introduction in 5-8 lines.
 
 ### 2. Important Concepts
-- Explain key concepts in bullet points.
+Explain all important concepts in detail using bullet points.
+Each concept should have a short explanation.
 
 ### 3. Definitions
-- Give important definitions.
+List important definitions.
+Each definition should be written clearly for exam use.
 
-### 4. Important Formulas
-- Write formulas clearly.
-- Use display math for important formulas.
+### 4. Detailed Explanation of Topics
+Explain major subtopics one by one.
+Use headings and subheadings.
+Write enough content for revision.
 
-### 5. Important Tables
-- Add tables only if the PDF has useful tabular/comparison content.
+### 5. Important Formulas / Laws / Rules
+Write formulas, Boolean laws, rules, or expressions if present.
+Use display math for important formulas.
 
-### 6. Short Exam Notes
-- Add short exam-oriented notes.
+### 6. Important Tables
+Use tables for comparison, truth tables, laws, gates, properties, or classifications.
 
-### 7. Diagram to Draw
-> **Diagram to draw:** Mention only diagrams that are useful for exams.
+### 7. Solved / Explanation Examples
+If examples are present in the PDF, explain them step-by-step.
+
+### 8. Diagram to Draw
+> **Diagram to draw:** Mention diagrams students should practice.
+
+### 9. Short Exam Notes
+> **Note:** Add important exam tips and common mistakes.
+
+### 10. Quick Revision Points
+Give 10-15 quick revision points at the end.
 
 DO NOT:
-- Do not create 2-mark, 5-mark, 10-mark question sections.
-- Do not make this look like a question paper.
-- Do not include too many exam questions.
-- At most include 2 important exam questions at the end.
+- Do not create 2-mark, 5-mark, 10-mark sections.
+- Do not create a question bank.
+- Do not create MCQs.
+- Do not make it short.
+- Add at most 2 important exam questions at the end only.
 
 {COMMON_RULES}
 
@@ -201,25 +207,33 @@ You are a college exam question paper expert.
 
 Create ONLY an IMPORTANT QUESTIONS document from the PDF content.
 
-The output must look like a question bank, not a summary.
+This must look like a real question bank, not a summary.
 
 STRICT IMPORTANT QUESTIONS FORMAT:
+
+# Important Questions
 
 ## UNIT / TOPIC NAME
 
 ## 2-Mark Questions
+
 Q1. Write the question.
-Answer: Give a 2-3 line answer.
+Answer: Give a short 2-3 line answer.
 
 Q2. Write the question.
-Answer: Give a 2-3 line answer.
+Answer: Give a short 2-3 line answer.
+
+Q3. Write the question.
+Answer: Give a short 2-3 line answer.
 
 ## 5-Mark Questions
+
 Q1. Write the question.
 Answer points:
 - Point 1
 - Point 2
 - Point 3
+- Point 4
 - Add formula/table if needed.
 
 Q2. Write the question.
@@ -227,45 +241,61 @@ Answer points:
 - Point 1
 - Point 2
 - Point 3
+- Point 4
 
 ## 10-Mark Questions
+
 Q1. Write the question.
 Answer outline:
 - Introduction
-- Explanation
-- Important formula/table
+- Main explanation
+- Important laws/formulas/table
 - Diagram to draw if required
 - Conclusion
 
 Q2. Write the question.
 Answer outline:
 - Introduction
-- Explanation
-- Important formula/table
+- Main explanation
+- Important laws/formulas/table
 - Diagram to draw if required
 - Conclusion
 
-## Numericals / Simplification Questions
-Q1. Write numerical or simplification question if present.
+## Numericals / Simplification / Truth Table Questions
+
+Q1. Write the question.
+Solution:
+- Step 1
+- Step 2
+- Final answer
+
+Q2. Write the question.
 Solution:
 - Step 1
 - Step 2
 - Final answer
 
 ## Viva Questions
+
 Q1. Question?
 Ans: Short oral answer.
 
 Q2. Question?
 Ans: Short oral answer.
 
-IMPORTANT:
+Q3. Question?
+Ans: Short oral answer.
+
+VERY IMPORTANT:
 - Do not write "Important Concepts" as a main section.
 - Do not write "Definitions" as a main section.
 - Do not write "Notes" as a main section.
-- Do not write "Diagram to Draw" as a main section unless it is inside a question answer.
-- Every question must have a short answer or answer outline.
-- This should look different from Summary.
+- Do not write "Important Tables" as a main section.
+- Do not write "Diagram to Draw" as a separate main section.
+- Tables, formulas, and diagrams can appear only inside answers where needed.
+- Every question must have an answer or answer outline.
+- Remove repeated questions.
+- This should look completely different from Summary.
 
 {COMMON_RULES}
 
@@ -279,6 +309,8 @@ def create_mcq_prompt(text):
 Create ONLY MCQs from the PDF content.
 
 STRICT MCQ FORMAT:
+
+# MCQ Practice Set
 
 ## UNIT / TOPIC NAME
 
@@ -303,10 +335,9 @@ Explanation: Short explanation.
 Rules:
 - Create 20 MCQs.
 - Do not write summary.
-- Do not write long theory answers.
-- Do not add 2-mark, 5-mark, or 10-mark sections.
+- Do not write theory notes.
+- Do not create 2-mark, 5-mark, or 10-mark sections.
 - Keep options simple and exam-level.
-- If a formula is needed, use proper LaTeX.
 
 {COMMON_RULES}
 
@@ -317,46 +348,79 @@ PDF Content:
 
 def create_formula_sheet_prompt(text):
     return f"""
-Create ONLY a FORMULA SHEET from the PDF content.
+Create ONLY a COMPACT 16:9 FORMULA SHEET from the PDF content.
+
+This should look like a formula cheat sheet, not normal notes.
+
+IMPORTANT:
+- Use card-based sections.
+- Each card should be compact.
+- Do not write long paragraphs.
+- Use short labels and formulas.
+- Include diagram instructions only if needed.
+- Include truth tables or law tables if useful.
+- Use only formulas/laws/rules from the uploaded PDF.
+- Do not add unrelated formulas.
 
 STRICT FORMULA SHEET FORMAT:
 
-## UNIT / TOPIC NAME
+# UNIT FORMULA SHEET TITLE
 
-## Formula 1: Formula Name
+**Topic 1 • Topic 2 • Topic 3 • Important Laws • Tables • Diagrams**
 
-$$
-formula here
-$$
+## CARD 1: Topic Name
 
-Where:
-- $symbol$ = meaning
-- $symbol$ = meaning
+**Diagram:** Short diagram instruction if required.
 
-Used for:
-- Explain where this formula is used.
-
-> **Note:** Important exam tip or common mistake.
-
-## Formula 2: Formula Name
+**Main Formula / Rule:**
 
 $$
 formula here
 $$
 
-Where:
-- $symbol$ = meaning
+**Important Points:**
+- Point 1
+- Point 2
+- Point 3
 
-Used for:
-- Usage explanation.
+**Exam Use:** Where this formula/rule is used.
 
-Rules:
-- Do not write summary paragraphs.
-- Do not create important questions.
+> **Note:** Short exam tip.
+
+## CARD 2: Topic Name
+
+**Main Formula / Rule:**
+
+$$
+formula here
+$$
+
+**Important Points:**
+- Point 1
+- Point 2
+- Point 3
+
+**Exam Use:** Usage.
+
+## CARD 3: Topic Name
+
+Continue same card format.
+
+## QUICK FORMULAS / LAWS
+
+| Formula / Law | Expression | Use |
+|---|---|---|
+| Law name | Short expression | Use |
+
+RULES:
+- Generate 6 to 8 cards if enough content is available.
+- Each card must be compact.
+- Use tables for truth tables, Boolean laws, comparisons, or properties.
+- Do not create Summary sections.
+- Do not create Important Questions sections.
 - Do not create MCQs.
-- Do not create viva questions.
-- Focus only on formulas, symbols, and usage.
-- Use tables only for short formula comparison if needed.
+- Do not create Viva Questions.
+- This output will be shown in landscape PDF.
 
 {COMMON_RULES}
 
@@ -370,6 +434,8 @@ def create_viva_prompt(text):
 Create ONLY VIVA QUESTIONS AND ANSWERS from the PDF content.
 
 STRICT VIVA FORMAT:
+
+# Viva Questions and Answers
 
 ## UNIT / TOPIC NAME
 
@@ -389,7 +455,7 @@ Rules:
 - Do not write summary sections.
 - Do not create 2-mark, 5-mark, 10-mark sections.
 - Do not make tables unless absolutely needed.
-- Focus on quick revision before viva.
+- Focus on quick viva revision.
 
 {COMMON_RULES}
 
@@ -398,24 +464,22 @@ PDF Content:
 """
 
 
-# -----------------------------
-# CHUNK PROMPTS FOR LARGE PDFs
-# -----------------------------
-
 def create_chunk_prompt(chunk_text, chunk_number, total_chunks, output_type):
     if output_type == "Summary":
         return f"""
 You are reading part {chunk_number} of {total_chunks} from a college PDF.
 
-Extract only SUMMARY MATERIAL from this part.
+Extract DETAILED SUMMARY MATERIAL only.
 
 Return:
 - Important concepts
 - Definitions
-- Important formulas
+- Detailed explanations
+- Important formulas/laws/rules
 - Useful tables
+- Diagram points
 - Short exam notes
-- Diagram points if required
+- Quick revision points
 
 Do NOT create a question bank.
 
@@ -425,13 +489,13 @@ PDF Part {chunk_number}/{total_chunks}:
 {chunk_text}
 """
 
-    elif output_type == "Important Questions":
+    if output_type == "Important Questions":
         return f"""
 You are reading part {chunk_number} of {total_chunks} from a college PDF.
 
-Extract ONLY possible exam questions from this part.
+Extract ONLY exam questions from this part.
 
-Return questions in this rough format:
+Return in this rough format:
 
 ## Possible 2-Mark Questions
 Q. Question?
@@ -452,7 +516,7 @@ Answer outline:
 - Formula/table/diagram if needed
 - Conclusion
 
-## Possible Numericals / Simplification Questions
+## Possible Numericals / Simplification / Truth Table Questions
 Q. Question?
 Solution:
 - Step 1
@@ -470,7 +534,7 @@ PDF Part {chunk_number}/{total_chunks}:
 {chunk_text}
 """
 
-    elif output_type == "MCQs":
+    if output_type == "MCQs":
         return f"""
 You are reading part {chunk_number} of {total_chunks} from a college PDF.
 
@@ -494,26 +558,32 @@ PDF Part {chunk_number}/{total_chunks}:
 {chunk_text}
 """
 
-    elif output_type == "Formula Sheet":
+    if output_type == "Formula Sheet":
         return f"""
 You are reading part {chunk_number} of {total_chunks} from a college PDF.
 
-Extract ONLY formulas from this part.
+Extract ONLY formula-sheet material.
 
-Format:
-## Formula Name
+Return compact cards:
+
+## CARD: Topic Name
+
+**Main Formula / Rule:**
 
 $$
 formula here
 $$
 
-Where:
-- $symbol$ = meaning
+**Important Points:**
+- Point 1
+- Point 2
 
-Used for:
-- Usage
+**Exam Use:** Usage.
 
-Do not write summary or question answers.
+Also extract useful tables such as truth tables, Boolean law tables, or formula comparison tables.
+
+Do not write long notes.
+Do not create question answers.
 
 {COMMON_RULES}
 
@@ -521,7 +591,7 @@ PDF Part {chunk_number}/{total_chunks}:
 {chunk_text}
 """
 
-    elif output_type == "Viva Questions":
+    if output_type == "Viva Questions":
         return f"""
 You are reading part {chunk_number} of {total_chunks} from a college PDF.
 
@@ -542,41 +612,43 @@ PDF Part {chunk_number}/{total_chunks}:
 {chunk_text}
 """
 
-    else:
-        return create_chunk_prompt(chunk_text, chunk_number, total_chunks, "Summary")
+    return create_chunk_prompt(chunk_text, chunk_number, total_chunks, "Summary")
 
-
-# -----------------------------
-# FINAL PROMPTS FOR LARGE PDFs
-# -----------------------------
 
 def create_final_prompt(combined_notes, output_type):
     if output_type == "Summary":
         return f"""
 You are an exam preparation assistant.
 
-Combine the partial notes into one final SUMMARY.
+Combine the partial notes into one final LONG DETAILED SUMMARY.
 
-Final output must look like summary notes, not a question bank.
+The final summary must be detailed enough to become minimum 5 PDF pages.
 
 STRICT FINAL SUMMARY FORMAT:
+
+# Detailed Summary Notes
 
 ## UNIT / TOPIC NAME
 
 ### 1. Introduction
 ### 2. Important Concepts
 ### 3. Definitions
-### 4. Important Formulas
-### 5. Important Tables
-### 6. Short Exam Notes
-### 7. Diagram to Draw
+### 4. Detailed Explanation of Topics
+### 5. Important Formulas / Laws / Rules
+### 6. Important Tables
+### 7. Solved / Explanation Examples
+### 8. Diagram to Draw
+### 9. Short Exam Notes
+### 10. Quick Revision Points
 
 Rules:
 - Do not create 2-mark, 5-mark, 10-mark sections.
 - Do not create a question bank.
-- At most include 2 important exam questions at the end.
+- Do not create MCQs.
+- Make it detailed.
+- Add enough explanation under each heading.
 - Remove repetition.
-- Keep it clean and exam-oriented.
+- At most include 2 important exam questions at the end.
 
 {COMMON_RULES}
 
@@ -584,7 +656,7 @@ Partial Notes:
 {combined_notes}
 """
 
-    elif output_type == "Important Questions":
+    if output_type == "Important Questions":
         return f"""
 You are a college exam question paper expert.
 
@@ -594,6 +666,8 @@ This must look completely different from a summary.
 
 STRICT FINAL IMPORTANT QUESTIONS FORMAT:
 
+# Important Questions
+
 ## UNIT / TOPIC NAME
 
 ## 2-Mark Questions
@@ -601,6 +675,9 @@ Q1. Question?
 Answer: Short answer.
 
 Q2. Question?
+Answer: Short answer.
+
+Q3. Question?
 Answer: Short answer.
 
 ## 5-Mark Questions
@@ -636,8 +713,14 @@ Answer outline:
 - Diagram to draw if required
 - Conclusion
 
-## Numericals / Simplification Questions
+## Numericals / Simplification / Truth Table Questions
 Q1. Question?
+Solution:
+- Step 1
+- Step 2
+- Final answer
+
+Q2. Question?
 Solution:
 - Step 1
 - Step 2
@@ -667,11 +750,13 @@ Partial Question Material:
 {combined_notes}
 """
 
-    elif output_type == "MCQs":
+    if output_type == "MCQs":
         return f"""
 Combine the partial MCQs into one final MCQ set.
 
 STRICT FINAL MCQ FORMAT:
+
+# MCQ Practice Set
 
 ## UNIT / TOPIC NAME
 
@@ -696,46 +781,74 @@ Partial MCQs:
 {combined_notes}
 """
 
-    elif output_type == "Formula Sheet":
+    if output_type == "Formula Sheet":
         return f"""
-Combine the partial formula notes into one final FORMULA SHEET.
+Combine the partial formula material into one final COMPACT 16:9 FORMULA SHEET.
+
+The output must look like a cheat sheet with multiple compact cards.
 
 STRICT FINAL FORMULA SHEET FORMAT:
 
-## UNIT / TOPIC NAME
+# UNIT FORMULA SHEET TITLE
 
-## Formula 1: Formula Name
+**Topic 1 • Topic 2 • Topic 3 • Laws • Tables • Diagrams**
+
+## CARD 1: Topic Name
+
+**Diagram:** Short diagram instruction if needed.
+
+**Main Formula / Rule:**
 
 $$
 formula here
 $$
 
-Where:
-- $symbol$ = meaning
+**Important Points:**
+- Point 1
+- Point 2
+- Point 3
 
-Used for:
-- Usage explanation.
+**Exam Use:** Usage.
 
-> **Note:** Exam tip.
+> **Note:** Short exam tip.
+
+## CARD 2: Topic Name
+
+Continue same format.
+
+## CARD 3: Topic Name
+
+Continue same format.
+
+## QUICK FORMULAS / LAWS
+
+| Formula / Law | Expression | Use |
+|---|---|---|
+| Law name | Short expression | Use |
 
 Rules:
-- Do not add important questions.
-- Do not add MCQs.
-- Do not add viva questions.
-- Do not add summary paragraphs.
-- Only formulas, symbols, uses, and exam tips.
+- Generate 6 to 8 cards if content allows.
+- Keep every card compact.
+- Use tables for truth tables, Boolean laws, formula summaries, and comparisons.
+- Do not create summary paragraphs.
+- Do not create question bank.
+- Do not create MCQs.
+- Do not create viva questions.
+- The content will be displayed in landscape PDF.
 
 {COMMON_RULES}
 
-Partial Formula Notes:
+Partial Formula Material:
 {combined_notes}
 """
 
-    elif output_type == "Viva Questions":
+    if output_type == "Viva Questions":
         return f"""
 Combine the partial viva questions into one final VIVA QUESTIONS document.
 
 STRICT FINAL VIVA FORMAT:
+
+# Viva Questions and Answers
 
 ## UNIT / TOPIC NAME
 
@@ -761,8 +874,7 @@ Partial Viva Material:
 {combined_notes}
 """
 
-    else:
-        return create_final_prompt(combined_notes, "Summary")
+    return create_final_prompt(combined_notes, "Summary")
 
 
 def generate_with_groq(prompt, max_tokens=1200, retries=1):
@@ -778,18 +890,16 @@ You are a helpful exam preparation assistant for engineering students.
 
 Strict formatting rules:
 - Output must follow the selected output type exactly.
-- Summary must look like summary notes.
-- Important Questions must look like a question bank.
+- Summary must look like detailed summary notes.
+- Important Questions must look like a real question bank.
 - MCQs must contain only MCQs.
-- Formula Sheet must contain only formulas.
+- Formula Sheet must look like a compact cheat-sheet with cards.
 - Viva Questions must contain only viva Q&A.
 - Output must be valid Markdown.
 - Use Markdown tables correctly.
 - Every Markdown table row must be on a new line.
 - Never write a full table in one line.
 - Never put display equations inside table cells.
-- In table cells, use short inline math only.
-- Put long formulas below tables using $$...$$.
 - Use $...$ only for short inline math.
 - Use $$...$$ for long or important equations.
 - Never output lone $ symbols.
@@ -818,10 +928,6 @@ Strict formatting rules:
 
             raise e
 
-
-# -----------------------------
-# CLEANUP FUNCTIONS
-# -----------------------------
 
 def remove_orphan_dollars(text):
     lines = text.split("\n")
@@ -852,7 +958,6 @@ def repair_one_line_tables(text):
 
         if stripped.startswith("|") and stripped.count("|") >= 8:
             possible_rows = re.split(r"\|\s+\|", stripped)
-
             fixed_rows = []
 
             for row in possible_rows:
@@ -868,9 +973,7 @@ def repair_one_line_tables(text):
                     row = row + " |"
 
                 row = re.sub(r"\s*\|\s*", " | ", row)
-                row = row.strip()
-
-                fixed_rows.append(row)
+                fixed_rows.append(row.strip())
 
             if len(fixed_rows) >= 2:
                 repaired.append("")
@@ -1009,7 +1112,14 @@ def process_pdf_chunks(chunks, output_type):
 
     if len(chunks) == 1:
         prompt = create_prompt(chunks[0], output_type)
-        output = generate_with_groq(prompt, max_tokens=2200)
+
+        if output_type == "Summary":
+            output = generate_with_groq(prompt, max_tokens=4200)
+        elif output_type == "Formula Sheet":
+            output = generate_with_groq(prompt, max_tokens=3200)
+        else:
+            output = generate_with_groq(prompt, max_tokens=2600)
+
         return clean_ai_output(output)
 
     partial_outputs = []
@@ -1022,19 +1132,30 @@ def process_pdf_chunks(chunks, output_type):
             output_type
         )
 
-        partial_output = generate_with_groq(chunk_prompt, max_tokens=750)
-        partial_output = clean_ai_output(partial_output)
+        if output_type == "Summary":
+            partial_output = generate_with_groq(chunk_prompt, max_tokens=1100)
+        elif output_type == "Formula Sheet":
+            partial_output = generate_with_groq(chunk_prompt, max_tokens=900)
+        else:
+            partial_output = generate_with_groq(chunk_prompt, max_tokens=800)
 
+        partial_output = clean_ai_output(partial_output)
         partial_outputs.append(f"## Part {index + 1}\n\n{partial_output}")
 
         time.sleep(0.5)
 
     combined_notes = "\n\n".join(partial_outputs)
-    combined_notes = combined_notes[:9000]
+    combined_notes = combined_notes[:12000]
 
     final_prompt = create_final_prompt(combined_notes, output_type)
 
-    final_output = generate_with_groq(final_prompt, max_tokens=2400)
+    if output_type == "Summary":
+        final_output = generate_with_groq(final_prompt, max_tokens=4200)
+    elif output_type == "Formula Sheet":
+        final_output = generate_with_groq(final_prompt, max_tokens=3400)
+    else:
+        final_output = generate_with_groq(final_prompt, max_tokens=2800)
+
     final_output = clean_ai_output(final_output)
 
     return final_output
@@ -1043,7 +1164,7 @@ def process_pdf_chunks(chunks, output_type):
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
-        "message": "ExamEase AI backend is running with distinct output types"
+        "message": "ExamEase AI backend is running with distinct output types and formula sheet layout"
     })
 
 
@@ -1075,12 +1196,12 @@ def upload_pdf():
 
         if "rate_limit_exceeded" in error_message or "tokens per minute" in error_message:
             return jsonify({
-                "error": "The PDF is large and the free AI limit was reached. Please wait 1 minute and try again."
+                "error": "The PDF is large or the free AI token limit was reached. Please wait 1 minute and try again."
             }), 500
 
         if "Request too large" in error_message:
             return jsonify({
-                "error": "This PDF is still too large for the current free AI limit. Try uploading unit-wise PDFs."
+                "error": "This PDF is too large for the current free AI limit. Try uploading unit-wise PDFs."
             }), 500
 
         if "memory" in error_message.lower():
