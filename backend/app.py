@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pdfplumber
 import os
+import time
 from dotenv import load_dotenv
 from groq import Groq
 
@@ -17,6 +18,8 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
+MODEL_NAME = "openai/gpt-oss-20b"
+
 
 COMMON_RULES = """
 Formatting rules:
@@ -25,19 +28,6 @@ Formatting rules:
 - Do not create Markdown tables using | | |.
 - Do not put many formulas in one horizontal line.
 - If content has a table, convert it into a clean bullet list or numbered list.
-- For "Operators and Observables", write each observable separately like:
-  - Position:
-    $$
-    \\hat{x} = x
-    $$
-  - Momentum:
-    $$
-    \\hat{p} = -i\\hbar \\frac{\\partial}{\\partial x}
-    $$
-  - Kinetic Energy:
-    $$
-    \\hat{T} = \\frac{\\hat{p}^2}{2m}
-    $$
 - Write all equations in clean KaTeX-compatible LaTeX.
 - For inline equations, use $...$.
 - For big equations, use only this format:
@@ -75,23 +65,43 @@ V(x,t)
 \\Psi(x,t)
 $$
 
-$$
-i\\hbar \\frac{\\partial \\Psi}{\\partial t}
-=
-\\left[
--\\frac{\\hbar^2}{2m}\\nabla^2
-+
-V
-\\right]
-\\Psi
-$$
-
 Where:
 - $i = \\sqrt{-1}$
 - $\\hbar = \\frac{h}{2\\pi}$
 - $\\Psi$ is the wave function
 - $V$ is potential energy
 """
+
+
+def split_text(text, max_chars=4500):
+    """
+    Splits large PDF text into smaller chunks.
+    max_chars is kept small to avoid Groq token limit.
+    """
+    chunks = []
+    start = 0
+
+    while start < len(text):
+        end = start + max_chars
+
+        if end < len(text):
+            # Try to break at paragraph or sentence
+            paragraph_break = text.rfind("\n", start, end)
+            sentence_break = text.rfind(". ", start, end)
+
+            if paragraph_break > start + 1000:
+                end = paragraph_break
+            elif sentence_break > start + 1000:
+                end = sentence_break + 1
+
+        chunk = text[start:end].strip()
+
+        if chunk:
+            chunks.append(chunk)
+
+        start = end
+
+    return chunks
 
 
 def create_prompt(text, output_type):
@@ -167,9 +177,9 @@ Rules:
 - Add where each formula is used
 - Keep it short and exam-oriented
 - Do not put formulas inside Markdown tables
-- If the PDF contains a table, convert it into bullet points.
-- Never generate table format using | symbols.
-- Write one formula per line, not side by side.
+- If the PDF contains a table, convert it into bullet points
+- Never generate table format using | symbols
+- Write one formula per line, not side by side
 - Make equations look like textbook-style equations
 
 Use this format:
@@ -219,13 +229,68 @@ Content:
 """
 
 
-def generate_with_groq(prompt):
-    chat_completion = client.chat.completions.create(
-        model="openai/gpt-oss-20b",
-        messages=[
-            {
-                "role": "system",
-                "content": """
+def create_chunk_prompt(chunk_text, chunk_number, total_chunks):
+    return f"""
+You are reading part {chunk_number} of {total_chunks} from a college PDF.
+
+Create a short exam-oriented summary of this part only.
+
+Rules:
+- Extract important concepts
+- Extract definitions
+- Extract formulas
+- Keep it concise
+- Use bullet points
+- Use proper LaTeX for equations
+- Do not make long explanations
+
+{COMMON_RULES}
+
+PDF Part {chunk_number}/{total_chunks}:
+{chunk_text}
+"""
+
+
+def create_final_prompt(combined_notes, output_type):
+    return f"""
+You are an exam preparation assistant.
+
+The following notes are partial summaries created from different parts of a large PDF.
+
+Now combine them into one final polished output.
+
+Output type required: {output_type}
+
+Rules:
+- Remove repetition
+- Organize properly with headings
+- Keep it exam-oriented
+- Use simple student-friendly language
+- Preserve important formulas
+- Use clean LaTeX equations
+- Do not create Markdown tables with | symbols
+- If table-like data exists, convert it into bullet points
+
+{COMMON_RULES}
+
+Partial notes:
+{combined_notes}
+"""
+
+
+def generate_with_groq(prompt, max_tokens=1600, retries=2):
+    """
+    Sends prompt to Groq.
+    If rate limit happens, waits and retries.
+    """
+    for attempt in range(retries + 1):
+        try:
+            chat_completion = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """
 You are a helpful exam preparation assistant for engineering students.
 
 Very important:
@@ -235,23 +300,69 @@ Very important:
 - Never use \\[ \\] or \\( \\).
 - Never write equations as plain text.
 - Never start equations with square brackets like [i\\hbar.
+- Never create Markdown tables using | symbols.
 """
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.2,
-        max_tokens=3000
-    )
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.2,
+                max_tokens=max_tokens
+            )
 
-    return chat_completion.choices[0].message.content
+            return chat_completion.choices[0].message.content
+
+        except Exception as e:
+            error_message = str(e)
+
+            if "rate_limit_exceeded" in error_message or "tokens per minute" in error_message:
+                if attempt < retries:
+                    time.sleep(65)
+                    continue
+
+            raise e
+
+
+def process_large_pdf(extracted_text, output_type):
+    """
+    Handles small and large PDFs.
+    Small PDF: direct AI generation.
+    Large PDF: chunk summary + final summary.
+    """
+
+    # Small PDF direct processing
+    if len(extracted_text) <= 5500:
+        prompt = create_prompt(extracted_text, output_type)
+        return generate_with_groq(prompt, max_tokens=2500)
+
+    # Large PDF chunk processing
+    chunks = split_text(extracted_text, max_chars=4500)
+    partial_summaries = []
+
+    for index, chunk in enumerate(chunks):
+        chunk_prompt = create_chunk_prompt(chunk, index + 1, len(chunks))
+        partial_summary = generate_with_groq(chunk_prompt, max_tokens=900)
+        partial_summaries.append(f"## Part {index + 1}\n{partial_summary}")
+
+        # Small delay to avoid hitting free-tier rate limits too quickly
+        time.sleep(3)
+
+    combined_notes = "\n\n".join(partial_summaries)
+
+    # Keep combined notes within safe size for final call
+    combined_notes = combined_notes[:12000]
+
+    final_prompt = create_final_prompt(combined_notes, output_type)
+    final_output = generate_with_groq(final_prompt, max_tokens=3000)
+
+    return final_output
 
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "ExamEase AI backend is running with Groq API"})
+    return jsonify({"message": "ExamEase AI backend is running with large PDF support"})
 
 
 @app.route("/upload", methods=["POST"])
@@ -280,10 +391,7 @@ def upload_pdf():
         if extracted_text.strip() == "":
             return jsonify({"error": "No readable text found in this PDF"}), 400
 
-        extracted_text = extracted_text[:12000]
-
-        prompt = create_prompt(extracted_text, output_type)
-        ai_output = generate_with_groq(prompt)
+        ai_output = process_large_pdf(extracted_text, output_type)
 
         return jsonify({
             "message": "AI notes generated successfully",
@@ -291,7 +399,19 @@ def upload_pdf():
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        error_message = str(e)
+
+        if "rate_limit_exceeded" in error_message or "tokens per minute" in error_message:
+            return jsonify({
+                "error": "The PDF is large and the free AI limit was reached. Please try again after 1 minute or upload a smaller PDF."
+            }), 500
+
+        if "Request too large" in error_message:
+            return jsonify({
+                "error": "This PDF is still too large for the current AI limit. We are processing large PDFs in chunks, but this file may need to be split into smaller units."
+            }), 500
+
+        return jsonify({"error": error_message}), 500
 
 
 if __name__ == "__main__":
