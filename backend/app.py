@@ -18,7 +18,10 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-MODEL_NAME = "openai/gpt-oss-20b"
+MODEL_NAME = "llama-3.1-8b-instant"
+
+MAX_CHUNK_CHARS = 3500
+MAX_CHUNKS = 8
 
 
 COMMON_RULES = """
@@ -64,42 +67,35 @@ V(x,t)
 \\right]
 \\Psi(x,t)
 $$
-
-Where:
-- $i = \\sqrt{-1}$
-- $\\hbar = \\frac{h}{2\\pi}$
-- $\\Psi$ is the wave function
-- $V$ is potential energy
 """
 
 
-def split_text(text, max_chars=4500):
+def create_chunks_from_pdf(file_path):
     """
-    Splits large PDF text into smaller chunks.
-    max_chars is kept small to avoid Groq token limit.
+    Reads PDF page by page and creates chunks without storing full PDF text.
+    This prevents Render memory crash.
     """
     chunks = []
-    start = 0
+    current_chunk = ""
 
-    while start < len(text):
-        end = start + max_chars
+    with pdfplumber.open(file_path) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text() or ""
 
-        if end < len(text):
-            # Try to break at paragraph or sentence
-            paragraph_break = text.rfind("\n", start, end)
-            sentence_break = text.rfind(". ", start, end)
+            if not page_text.strip():
+                continue
 
-            if paragraph_break > start + 1000:
-                end = paragraph_break
-            elif sentence_break > start + 1000:
-                end = sentence_break + 1
+            if len(current_chunk) + len(page_text) < MAX_CHUNK_CHARS:
+                current_chunk += "\n" + page_text
+            else:
+                chunks.append(current_chunk.strip())
+                current_chunk = page_text
 
-        chunk = text[start:end].strip()
+            if len(chunks) >= MAX_CHUNKS:
+                break
 
-        if chunk:
-            chunks.append(chunk)
-
-        start = end
+    if current_chunk.strip() and len(chunks) < MAX_CHUNKS:
+        chunks.append(current_chunk.strip())
 
     return chunks
 
@@ -255,7 +251,7 @@ def create_final_prompt(combined_notes, output_type):
     return f"""
 You are an exam preparation assistant.
 
-The following notes are partial summaries created from different parts of a large PDF.
+The following notes are partial summaries created from different parts of a PDF.
 
 Now combine them into one final polished output.
 
@@ -278,11 +274,7 @@ Partial notes:
 """
 
 
-def generate_with_groq(prompt, max_tokens=1600, retries=2):
-    """
-    Sends prompt to Groq.
-    If rate limit happens, waits and retries.
-    """
+def generate_with_groq(prompt, max_tokens=1200, retries=1):
     for attempt in range(retries + 1):
         try:
             chat_completion = client.chat.completions.create(
@@ -325,44 +317,37 @@ Very important:
             raise e
 
 
-def process_large_pdf(extracted_text, output_type):
-    """
-    Handles small and large PDFs.
-    Small PDF: direct AI generation.
-    Large PDF: chunk summary + final summary.
-    """
+def process_pdf_chunks(chunks, output_type):
+    if not chunks:
+        raise Exception("No readable text found in this PDF")
 
-    # Small PDF direct processing
-    if len(extracted_text) <= 5500:
-        prompt = create_prompt(extracted_text, output_type)
-        return generate_with_groq(prompt, max_tokens=2500)
+    # Small PDF: direct generation
+    if len(chunks) == 1:
+        prompt = create_prompt(chunks[0], output_type)
+        return generate_with_groq(prompt, max_tokens=2200)
 
-    # Large PDF chunk processing
-    chunks = split_text(extracted_text, max_chars=4500)
+    # Large PDF: chunk processing
     partial_summaries = []
 
     for index, chunk in enumerate(chunks):
         chunk_prompt = create_chunk_prompt(chunk, index + 1, len(chunks))
-        partial_summary = generate_with_groq(chunk_prompt, max_tokens=900)
+        partial_summary = generate_with_groq(chunk_prompt, max_tokens=800)
         partial_summaries.append(f"## Part {index + 1}\n{partial_summary}")
 
-        # Small delay to avoid hitting free-tier rate limits too quickly
-        time.sleep(3)
+        time.sleep(2)
 
     combined_notes = "\n\n".join(partial_summaries)
-
-    # Keep combined notes within safe size for final call
-    combined_notes = combined_notes[:12000]
+    combined_notes = combined_notes[:9000]
 
     final_prompt = create_final_prompt(combined_notes, output_type)
-    final_output = generate_with_groq(final_prompt, max_tokens=3000)
+    final_output = generate_with_groq(final_prompt, max_tokens=2500)
 
     return final_output
 
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "ExamEase AI backend is running with large PDF support"})
+    return jsonify({"message": "ExamEase AI backend is running with memory-safe large PDF support"})
 
 
 @app.route("/upload", methods=["POST"])
@@ -379,19 +364,9 @@ def upload_pdf():
     file_path = os.path.join(UPLOAD_FOLDER, pdf_file.filename)
     pdf_file.save(file_path)
 
-    extracted_text = ""
-
     try:
-        with pdfplumber.open(file_path) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    extracted_text += text + "\n"
-
-        if extracted_text.strip() == "":
-            return jsonify({"error": "No readable text found in this PDF"}), 400
-
-        ai_output = process_large_pdf(extracted_text, output_type)
+        chunks = create_chunks_from_pdf(file_path)
+        ai_output = process_pdf_chunks(chunks, output_type)
 
         return jsonify({
             "message": "AI notes generated successfully",
@@ -403,15 +378,24 @@ def upload_pdf():
 
         if "rate_limit_exceeded" in error_message or "tokens per minute" in error_message:
             return jsonify({
-                "error": "The PDF is large and the free AI limit was reached. Please try again after 1 minute or upload a smaller PDF."
+                "error": "The PDF is large and the free AI limit was reached. Please wait 1 minute and try again."
             }), 500
 
         if "Request too large" in error_message:
             return jsonify({
-                "error": "This PDF is still too large for the current AI limit. We are processing large PDFs in chunks, but this file may need to be split into smaller units."
+                "error": "This PDF is still too large for the current free AI limit. Try uploading unit-wise PDFs."
+            }), 500
+
+        if "memory" in error_message.lower():
+            return jsonify({
+                "error": "The PDF is too heavy for the free server memory. Try a smaller PDF."
             }), 500
 
         return jsonify({"error": error_message}), 500
+
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
 
 if __name__ == "__main__":
