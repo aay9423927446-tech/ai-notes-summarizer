@@ -20,8 +20,9 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 MODEL_NAME = "llama-3.1-8b-instant"
 
+# Balanced settings: good speed + good quality
 MAX_CHUNK_CHARS = 3500
-MAX_CHUNKS = 8
+MAX_CHUNKS = 6
 
 
 COMMON_RULES = """
@@ -331,23 +332,31 @@ def process_pdf_chunks(chunks, output_type):
 
     for index, chunk in enumerate(chunks):
         chunk_prompt = create_chunk_prompt(chunk, index + 1, len(chunks))
-        partial_summary = generate_with_groq(chunk_prompt, max_tokens=800)
+
+        # Balanced output size for speed + quality
+        partial_summary = generate_with_groq(chunk_prompt, max_tokens=700)
+
         partial_summaries.append(f"## Part {index + 1}\n{partial_summary}")
 
-        time.sleep(2)
+        # Smaller delay to reduce waiting time
+        time.sleep(0.5)
 
     combined_notes = "\n\n".join(partial_summaries)
     combined_notes = combined_notes[:9000]
 
     final_prompt = create_final_prompt(combined_notes, output_type)
-    final_output = generate_with_groq(final_prompt, max_tokens=2500)
+
+    # Balanced final output size
+    final_output = generate_with_groq(final_prompt, max_tokens=2200)
 
     return final_output
 
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "ExamEase AI backend is running with memory-safe large PDF support"})
+    return jsonify({
+        "message": "ExamEase AI backend is running with balanced large PDF support"
+    })
 
 
 @app.route("/upload", methods=["POST"])
