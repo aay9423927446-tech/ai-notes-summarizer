@@ -21,94 +21,81 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 MODEL_NAME = "llama-3.1-8b-instant"
 
-# Balanced settings: good speed + good quality
+# Balanced settings: speed + quality
 MAX_CHUNK_CHARS = 3500
 MAX_CHUNKS = 6
 
 
 COMMON_RULES = """
-Formatting and design rules:
-- Make the output look like a professional exam-preparation PDF.
+You must create clean, exam-ready notes that will be rendered as Markdown and downloaded as a PDF.
+
+GENERAL FORMAT:
 - Use proper Markdown headings.
-- Use clean exam-oriented formatting.
-- Keep language simple and student-friendly.
-- Use clear section headings like:
+- Use this structure:
   ## UNIT 1 — Topic Name
   ### Q1. Question Name
+- Keep language simple and exam-oriented.
+- Do not write unnecessary long paragraphs.
+- Use bullet points for concepts and definitions.
+- Use tables only when information is truly tabular.
+- Do not generate broken Markdown.
 
-Important visual style:
-- Use headings clearly.
-- Use proper tables wherever the content is tabular.
-- Use note boxes for tips.
-- Use exam-question boxes for important questions.
-- Use diagram-to-draw boxes when a diagram is required.
+BOXES:
+Use blockquotes for important boxes.
 
-Question boxes:
-Write important questions exactly like this:
+For notes:
+> **Note:** Write the important exam tip here.
 
-> **Exam Question:** Write the actual question here.
+For exam questions:
+> **Exam Question:** Write the question here.
 
-Note boxes:
-Write important tips exactly like this:
+For diagrams:
+> **Diagram to draw:** Describe the diagram clearly with labels.
 
-> **Note:** Write the exam tip here.
-
-Diagram boxes:
-If a diagram is needed, write it exactly like this:
-
-> **Diagram to draw:** Describe the labelled diagram clearly.
-> Include labels, current/voltage directions, components, and what the student should draw.
-
-Tables:
-- Use proper Markdown tables whenever the content is comparison-based, truth-table-based, or tabular.
+TABLE RULES:
+- Use proper Markdown tables for comparisons, truth tables, formulas, operators, and laws.
 - Do not convert tables into bullet points.
-- Do not write tables in one single line.
-- Every table row must be on a new line.
-- Always leave one blank line before and after a table.
-- Use tables for:
-  - Truth tables
-  - Comparison tables
-  - Formula summary tables
-  - Advantages vs disadvantages
-  - Operator/observable tables
-- Keep table content short and readable.
-- Do not put many formulas in one long table row.
-- Use this exact Markdown table format:
+- Never write a table in one single line.
+- Every table row must be on a separate line.
+- Every table row must start with | and end with |.
+- Always keep a blank line before and after a table.
+- Do not use display equations inside table cells.
+- Do not put long formulas inside table cells.
+- Inside table cells, use only short inline math like $\\hat{x} = x$.
+- If the formula is long, write "See formula below" in the table cell and then write the full equation below the table.
+- Do not split one table row across multiple lines.
+- Do not leave half table rows like "| Momentum |" without all columns.
 
-| Column 1 | Column 2 | Column 3 |
-|---|---|---|
-| Row 1 data | Row 1 data | Row 1 data |
-| Row 2 data | Row 2 data | Row 2 data |
-
-Good table example:
+Correct table format:
 
 | Quantity | Operator | Meaning |
 |---|---|---|
 | Position | $\\hat{x} = x$ | Measures position |
-| Momentum | $\\hat{p} = -i\\hbar \\frac{\\partial}{\\partial x}$ | Measures momentum |
-| Energy | $\\hat{E} = i\\hbar \\frac{\\partial}{\\partial t}$ | Measures total energy |
+| Momentum | See formula below | Measures momentum |
+| Energy | See formula below | Measures total energy |
 
-Equations:
-- Write all equations in clean KaTeX-compatible LaTeX.
-- For inline equations, use $...$ only for very small expressions.
-- For important equations, always use display format.
-- For display equations, use only this format:
+Then write long formulas separately:
 
 $$
-equation here
+\\hat{p} = -i\\hbar \\frac{\\partial}{\\partial x}
 $$
 
+$$
+\\hat{E} = i\\hbar \\frac{\\partial}{\\partial t}
+$$
+
+EQUATION RULES:
+- Use KaTeX-compatible LaTeX.
+- Use $...$ only for small inline expressions.
+- Use $$...$$ for important or long equations.
 - Do not use \\[ \\].
 - Do not use \\( \\).
-- Do not start equations with [ or end with ].
-- Do not write raw formulas as plain text.
-- Do not write equations in one broken line.
-- Put each major formula on a separate line.
-- Keep formulas clean and readable.
-- Never write important equations inside table cells if they are too long.
-- If an equation is long, place it below the table using display math.
+- Do not write lone $ symbols.
+- Do not write equations as plain broken text.
+- Do not put display equations inside tables.
+- Put every important equation on its own display block.
 
-Correct equation format examples:
+Correct equation examples:
 
 $$
 F = ma
@@ -129,18 +116,19 @@ V(x,t)
 \\Psi(x,t)
 $$
 
-Final output rules:
-- Never return broken Markdown tables.
-- Never return table rows in one single line.
-- Never return raw LaTeX without $...$ or $$...$$.
-- Make the final answer attractive and readable for a downloaded study-notes PDF.
+FINAL CHECK BEFORE ANSWERING:
+- No lone $ symbols.
+- No one-line tables.
+- No broken table rows.
+- No long equations inside tables.
+- No raw LaTeX outside $...$ or $$...$$.
 """
 
 
 def create_chunks_from_pdf(file_path):
     """
     Reads PDF page by page and creates chunks without storing full PDF text.
-    This prevents Render memory crash.
+    This prevents Render memory crashes.
     """
     chunks = []
     current_chunk = ""
@@ -173,29 +161,28 @@ def create_prompt(text, output_type):
         return f"""
 You are an exam preparation assistant.
 
-Summarize the following PDF content in simple student-friendly language.
+Create a clean exam-ready summary from the PDF content.
 
-Make the answer:
-- Pointwise
-- Easy to understand
-- Useful for exam revision
-- Include definitions, formulas, and important concepts
-- Use proper unit-wise headings
-- Explain formulas clearly
-- Include important exam notes
-- Add diagram-to-draw boxes wherever diagrams are needed
-- Use proper Markdown tables wherever content is tabular
-- Do not convert tables into bullet points
-- Do not copy long paragraphs directly
+Include:
+- Unit-wise headings
+- Important concepts
+- Definitions
+- Formulas
+- Proper Markdown tables where required
+- Notes
+- Exam questions
+- Diagram-to-draw boxes
 
 Very important:
-- Tables must be real Markdown tables.
-- Every table row must be on a new line.
-- Important equations must be in display math using $$...$$.
+- Keep tables proper.
+- Do not put long formulas inside table cells.
+- Put long formulas below the table.
+- Use $$...$$ for important equations.
+- Do not create broken Markdown.
 
 {COMMON_RULES}
 
-Content:
+PDF Content:
 {text}
 """
 
@@ -203,9 +190,9 @@ Content:
         return f"""
 You are a college exam question paper expert.
 
-From the following study material, generate important exam questions.
+Generate important exam questions from the PDF.
 
-Divide them into:
+Divide into:
 1. 2-mark questions
 2. 5-mark questions
 3. 10-mark questions
@@ -213,59 +200,51 @@ Divide them into:
 5. Viva questions
 
 Rules:
+- Use proper headings.
 - Use question boxes for important questions.
-- Add short hints below difficult questions.
-- Add formulas where needed.
-- Add diagram-to-draw boxes for theory questions needing diagrams.
-- Use proper Markdown tables for comparisons.
-
-For numerical/formula-based questions:
-- Write formulas using proper LaTeX.
-- Put important formulas in display format using $$...$$.
+- Use proper tables for comparison-based questions.
+- Write formulas cleanly using LaTeX.
+- Do not put long equations inside tables.
 
 {COMMON_RULES}
 
-Content:
+PDF Content:
 {text}
 """
 
     elif output_type == "MCQs":
         return f"""
-Create 20 multiple choice questions from the following content.
+Create 20 MCQs from the PDF content.
 
 Rules:
 - Give 4 options for each question.
 - Mark the correct answer.
-- Add short explanation.
+- Add a short explanation.
 - Use simple exam-level language.
-- If formula-based MCQs are present, write equations using LaTeX math format.
-- Use clean numbering.
-- Do not make the answer too lengthy.
+- If formulas are present, write them using proper LaTeX.
+- Avoid very long answers.
 
 {COMMON_RULES}
 
-Content:
+PDF Content:
 {text}
 """
 
     elif output_type == "Formula Sheet":
         return f"""
-Create a clean formula sheet from the following content.
+Create a clean formula sheet from the PDF content.
 
 Rules:
 - Extract all important formulas.
-- Write every important formula in display LaTeX format using $$...$$.
+- Use proper formula headings.
+- Write every important formula in display format using $$...$$.
 - Explain symbols below each formula.
 - Add where each formula is used.
-- Keep it short and exam-oriented.
-- Use proper Markdown tables for compact formula summaries.
-- Do not convert tables into bullet points.
-- If the PDF contains a table, convert it into a clean Markdown table.
-- Write one major formula per line, not side by side.
-- Make equations look like textbook-style equations.
+- Use compact tables only when readable.
+- Do not put long equations inside table cells.
 - Add note boxes for common exam mistakes.
 
-Use this format:
+Format:
 
 ## Formula Name
 
@@ -282,36 +261,34 @@ Used for: explanation.
 
 {COMMON_RULES}
 
-Content:
+PDF Content:
 {text}
 """
 
     elif output_type == "Viva Questions":
         return f"""
-Create viva questions and answers from the following content.
+Create viva questions and answers from the PDF content.
 
 Rules:
-- Make questions simple.
-- Give short answers.
-- Focus on exam and oral viva preparation.
-- Use student-friendly language.
-- If any answer contains a formula, write it using LaTeX math format.
-- Use clean numbering.
-- Add important viva tips as note boxes.
+- Questions should be simple.
+- Answers should be short.
+- Focus on oral viva preparation.
+- Use formulas only when required.
+- Use note boxes for important viva tips.
 
 {COMMON_RULES}
 
-Content:
+PDF Content:
 {text}
 """
 
     else:
         return f"""
-Summarize this content in simple student-friendly language.
+Summarize this PDF content in simple exam-ready language.
 
 {COMMON_RULES}
 
-Content:
+PDF Content:
 {text}
 """
 
@@ -320,22 +297,23 @@ def create_chunk_prompt(chunk_text, chunk_number, total_chunks):
     return f"""
 You are reading part {chunk_number} of {total_chunks} from a college PDF.
 
-Create a short exam-oriented summary of this part only.
+Create a short, clean exam-oriented summary of this part only.
 
-Rules:
-- Extract important concepts.
-- Extract definitions.
-- Extract formulas.
-- Extract tables if they are important.
-- Keep it concise.
-- Use bullet points where needed.
-- Use proper LaTeX for equations.
-- Use proper Markdown tables when content is tabular.
-- Do not convert tables into bullet points.
-- Every Markdown table row must be on a new line.
-- Add note boxes for exam tips.
-- Add diagram-to-draw boxes if a diagram is needed.
-- Do not make long explanations.
+Extract:
+- Important concepts
+- Definitions
+- Important formulas
+- Important tables
+- Notes
+- Diagram-to-draw points
+- Important exam questions
+
+Very important:
+- Do not create one-line tables.
+- Do not put long equations in table cells.
+- Write long equations below tables.
+- Do not leave lone $ symbols.
+- Use clean Markdown.
 
 {COMMON_RULES}
 
@@ -348,50 +326,40 @@ def create_final_prompt(combined_notes, output_type):
     return f"""
 You are an exam preparation assistant.
 
-The following notes are partial summaries created from different parts of a PDF.
-
-Now combine them into one final polished output.
+The notes below are partial summaries from different PDF parts.
+Combine them into one final clean output.
 
 Output type required: {output_type}
 
-Rules:
+Final output rules:
 - Remove repetition.
-- Organize properly with headings.
-- Keep it exam-oriented.
-- Use simple student-friendly language.
+- Use proper unit-wise headings.
 - Preserve important formulas.
-- Use clean LaTeX equations.
-- Use clean Markdown tables when useful, especially for:
-  - Truth tables
-  - Comparison tables
-  - Formula summaries
-  - Operators and observables
-  - Advantages vs disadvantages
+- Preserve important tables.
+- Format tables properly.
 - Do not convert tables into bullet points.
-- Every Markdown table row must be on a separate new line.
-- If table-like data exists, convert it into a proper Markdown table.
-- Add exam question boxes where needed.
-- Add note boxes for important tips.
-- Add diagram-to-draw boxes wherever diagrams are required.
-- Make the final answer look like a professional exam-prep PDF.
+- Do not put long equations inside tables.
+- Put long equations below tables using $$...$$.
+- Remove broken table rows.
+- Remove lone $ symbols.
+- Add note boxes, exam question boxes, and diagram boxes where useful.
+- Make the answer look like a professional exam-preparation PDF.
 
-Very strict table rule:
-Never write this:
-| A | B | |---|---| | X | Y |
+Very strict table example:
 
-Always write this:
+Correct:
 
-| A | B |
-|---|---|
-| X | Y |
-
-Very strict equation rule:
-Never write important formulas inside a sentence.
-Always write important equations like this:
+| Quantity | Operator | Meaning |
+|---|---|---|
+| Position | $\\hat{x} = x$ | Measures position |
+| Momentum | See formula below | Measures momentum |
 
 $$
-equation here
+\\hat{p} = -i\\hbar \\frac{\\partial}{\\partial x}
 $$
+
+Wrong:
+| Quantity | Operator | Meaning | |---|---|---| | Momentum | $\\hat p = ...$ | Meaning |
 
 {COMMON_RULES}
 
@@ -411,19 +379,20 @@ def generate_with_groq(prompt, max_tokens=1200, retries=1):
                         "content": """
 You are a helpful exam preparation assistant for engineering students.
 
-Very important formatting rules:
-- Always write mathematical equations using KaTeX-compatible LaTeX.
-- Use $...$ only for short inline equations.
-- Use $$...$$ for all important equations.
+Strict formatting rules:
+- Output must be valid Markdown.
+- Use Markdown tables correctly.
+- Every Markdown table row must be on a new line.
+- Never write a full table in one line.
+- Never put display equations inside table cells.
+- In table cells, use short inline math only.
+- Put long formulas below tables using $$...$$.
+- Use $...$ only for short inline math.
+- Use $$...$$ for long or important equations.
+- Never output lone $ symbols.
 - Never use \\[ \\] or \\( \\).
-- Never write equations as raw plain text.
-- Never start equations with square brackets like [i\\hbar.
-- Use Markdown tables when they improve readability.
-- Every Markdown table row must be on a separate new line.
-- Never write a full table in one single line.
-- Keep tables short and properly formatted.
-- Use note boxes and exam question boxes using Markdown blockquotes.
-- Make output suitable for an attractive downloaded study-notes PDF.
+- Never write raw broken LaTeX.
+- Use blockquotes for notes, exam questions, and diagram boxes.
 """
                     },
                     {
@@ -431,7 +400,7 @@ Very important formatting rules:
                         "content": prompt
                     }
                 ],
-                temperature=0.15,
+                temperature=0.1,
                 max_tokens=max_tokens
             )
 
@@ -448,29 +417,50 @@ Very important formatting rules:
             raise e
 
 
+def remove_orphan_dollars(text):
+    """
+    Removes lone $ symbols that appear on separate lines.
+    """
+    lines = text.split("\n")
+    cleaned_lines = []
+
+    for line in lines:
+        if line.strip() == "$":
+            continue
+        cleaned_lines.append(line)
+
+    return "\n".join(cleaned_lines)
+
+
+def normalize_math_delimiters(text):
+    """
+    Converts unsupported math delimiters into Markdown math.
+    """
+    text = text.replace("\\[", "$$")
+    text = text.replace("\\]", "$$")
+    text = text.replace("\\(", "$")
+    text = text.replace("\\)", "$")
+    return text
+
+
 def repair_one_line_tables(text):
     """
-    Attempts to repair tables that AI accidentally returns in one line.
-    Example:
+    Repairs common AI mistake:
     | A | B | |---|---| | X | Y |
-    becomes:
-    | A | B |
-    |---|---|
-    | X | Y |
+    into proper multi-line Markdown table.
     """
+    lines = text.split("\n")
+    repaired = []
 
-    repaired_lines = []
-
-    for line in text.split("\n"):
+    for line in lines:
         stripped = line.strip()
 
-        # Only repair suspicious one-line tables
         if stripped.startswith("|") and stripped.count("|") >= 8:
-            # Split table rows at places like | | or || with optional spaces
-            rows = re.split(r"\|\s*\|", stripped)
+            # Split where two table rows got joined: | |
+            possible_rows = re.split(r"\|\s+\|", stripped)
 
-            clean_rows = []
-            for row in rows:
+            fixed_rows = []
+            for row in possible_rows:
                 row = row.strip()
 
                 if not row:
@@ -482,35 +472,89 @@ def repair_one_line_tables(text):
                 if not row.endswith("|"):
                     row = row + " |"
 
-                # Normalize spacing around pipes
                 row = re.sub(r"\s*\|\s*", " | ", row)
-                row = row.replace("|  |", "|")
                 row = row.strip()
 
-                clean_rows.append(row)
+                fixed_rows.append(row)
 
-            # If repair gives multiple rows, use them
-            if len(clean_rows) >= 2:
-                repaired_lines.append("")
-                repaired_lines.extend(clean_rows)
-                repaired_lines.append("")
+            if len(fixed_rows) >= 2:
+                repaired.append("")
+                repaired.extend(fixed_rows)
+                repaired.append("")
             else:
-                repaired_lines.append(line)
+                repaired.append(line)
         else:
-            repaired_lines.append(line)
+            repaired.append(line)
 
-    return "\n".join(repaired_lines)
+    return "\n".join(repaired)
+
+
+def protect_tables_from_long_equations(text):
+    """
+    Attempts to prevent broken display equations inside Markdown table rows.
+    If a table row contains too much LaTeX, replace the cell with 'See formula below'
+    and place the formula after the table.
+    """
+    lines = text.split("\n")
+    output = []
+    delayed_formulas = []
+    in_table = False
+
+    for line in lines:
+        stripped = line.strip()
+        is_table_line = stripped.startswith("|") and stripped.endswith("|") and stripped.count("|") >= 2
+
+        if is_table_line:
+            in_table = True
+
+            # Detect long formula inside table row
+            has_long_formula = any(token in line for token in [
+                "\\frac", "\\partial", "\\int", "\\sum", "\\nabla"
+            ])
+
+            if has_long_formula and len(line) > 120:
+                formulas = re.findall(r"\$([^$]+)\$", line)
+
+                for formula in formulas:
+                    if any(token in formula for token in ["\\frac", "\\partial", "\\int", "\\sum", "\\nabla"]):
+                        delayed_formulas.append(formula)
+
+                line = re.sub(r"\$[^$]+?\$", "See formula below", line)
+
+            output.append(line)
+        else:
+            if in_table and delayed_formulas:
+                output.append("")
+                for formula in delayed_formulas:
+                    output.append("$$")
+                    output.append(formula.strip())
+                    output.append("$$")
+                    output.append("")
+                delayed_formulas = []
+
+            in_table = False
+            output.append(line)
+
+    if delayed_formulas:
+        output.append("")
+        for formula in delayed_formulas:
+            output.append("$$")
+            output.append(formula.strip())
+            output.append("$$")
+            output.append("")
+
+    return "\n".join(output)
 
 
 def normalize_markdown_tables(text):
     """
-    Ensures blank lines around Markdown tables for proper frontend rendering.
+    Adds blank lines around tables for proper rendering.
     """
     lines = text.split("\n")
     output = []
     in_table = False
 
-    for i, line in enumerate(lines):
+    for line in lines:
         stripped = line.strip()
         is_table_line = stripped.startswith("|") and stripped.endswith("|") and stripped.count("|") >= 2
 
@@ -529,40 +573,43 @@ def normalize_markdown_tables(text):
     return "\n".join(output)
 
 
-def normalize_equations(text):
+def remove_broken_pipe_lines(text):
     """
-    Cleans common equation issues and promotes important inline LaTeX to display math.
+    Removes badly broken leftover pipe lines that are not valid table rows.
     """
-    text = text.replace("\\[", "$$")
-    text = text.replace("\\]", "$$")
-    text = text.replace("\\(", "$")
-    text = text.replace("\\)", "$")
+    lines = text.split("\n")
+    cleaned = []
 
-    # Promote important inline equations to display math if they contain major LaTeX commands
-    important_latex = r"(\\frac|\\partial|\\int|\\sum|\\nabla|\\hat|\\sqrt|\\Psi|\\psi|\\hbar)"
+    for line in lines:
+        stripped = line.strip()
 
-    def replace_inline_math(match):
-        equation = match.group(1).strip()
+        # Remove lines that are only a single pipe
+        if stripped == "|":
+            continue
 
-        if re.search(important_latex, equation) and len(equation) > 12:
-            return f"\n\n$$\n{equation}\n$$\n\n"
+        # Remove lines like "| Momentum |" that are incomplete table fragments
+        if stripped.startswith("|") and stripped.endswith("|"):
+            cell_count = stripped.count("|") - 1
+            if cell_count <= 1 and "---" not in stripped:
+                continue
 
-        return f"${equation}$"
+        cleaned.append(line)
 
-    text = re.sub(r"\$([^$\n]+)\$", replace_inline_math, text)
-
-    return text
+    return "\n".join(cleaned)
 
 
 def clean_ai_output(text):
     """
-    Final cleanup before sending AI output to frontend.
+    Final cleanup before sending output to frontend.
     """
+    text = normalize_math_delimiters(text)
     text = repair_one_line_tables(text)
+    text = protect_tables_from_long_equations(text)
     text = normalize_markdown_tables(text)
-    text = normalize_equations(text)
+    text = remove_orphan_dollars(text)
+    text = remove_broken_pipe_lines(text)
 
-    # Remove excessive blank lines
+    # Clean too many blank lines
     text = re.sub(r"\n{4,}", "\n\n\n", text)
 
     return text.strip()
@@ -584,13 +631,11 @@ def process_pdf_chunks(chunks, output_type):
     for index, chunk in enumerate(chunks):
         chunk_prompt = create_chunk_prompt(chunk, index + 1, len(chunks))
 
-        # Balanced output size for speed + quality
         partial_summary = generate_with_groq(chunk_prompt, max_tokens=700)
         partial_summary = clean_ai_output(partial_summary)
 
         partial_summaries.append(f"## Part {index + 1}\n\n{partial_summary}")
 
-        # Smaller delay to reduce waiting time
         time.sleep(0.5)
 
     combined_notes = "\n\n".join(partial_summaries)
@@ -598,7 +643,6 @@ def process_pdf_chunks(chunks, output_type):
 
     final_prompt = create_final_prompt(combined_notes, output_type)
 
-    # Balanced final output size
     final_output = generate_with_groq(final_prompt, max_tokens=2200)
     final_output = clean_ai_output(final_output)
 
@@ -608,7 +652,7 @@ def process_pdf_chunks(chunks, output_type):
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
-        "message": "ExamEase AI backend is running with improved table, color-ready, and equation formatting support"
+        "message": "ExamEase AI backend is running with improved table and equation formatting"
     })
 
 

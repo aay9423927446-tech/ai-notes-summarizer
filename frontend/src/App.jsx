@@ -23,36 +23,10 @@ function App() {
     setPdfFile(e.target.files[0]);
   };
 
-  const fixBrokenTables = (text) => {
-    const lines = text.split("\n");
-    const fixedLines = [];
-
-    lines.forEach((line) => {
-      const trimmed = line.trim();
-
-      if (trimmed.startsWith("|") && trimmed.includes("|---") && trimmed.count) {
-        fixedLines.push(line);
-        return;
-      }
-
-      if (trimmed.startsWith("|") && trimmed.split("|").length > 8) {
-        let repaired = trimmed
-          .replace(/\|\s+\|/g, "|\n|")
-          .replace(/\|\|/g, "|\n|");
-
-        fixedLines.push("");
-        fixedLines.push(repaired);
-        fixedLines.push("");
-      } else {
-        fixedLines.push(line);
-      }
-    });
-
-    return fixedLines.join("\n");
-  };
-
   const fixOneLineTables = (text) => {
-    return text.replace(
+    let cleaned = text;
+
+    cleaned = cleaned.replace(
       /(\|[^|\n]+(?:\|[^|\n]+)+\|)\s+(\|[-:\s|]+\|)\s+((?:\|[^|\n]+(?:\|[^|\n]+)+\|\s*)+)/g,
       (match, header, separator, rows) => {
         const fixedRows = rows
@@ -60,34 +34,56 @@ function App() {
           .replace(/\|\s+\|/g, "|\n|")
           .replace(/\|\|/g, "|\n|");
 
-        return `\n${header}\n${separator}\n${fixedRows}\n`;
+        return `\n${header.trim()}\n${separator.trim()}\n${fixedRows}\n`;
       }
     );
+
+    cleaned = cleaned.replace(/\|\s+\|/g, "|\n|");
+    cleaned = cleaned.replace(/\|\|/g, "|\n|");
+
+    return cleaned;
   };
 
-  const fixInlineEquations = (text) => {
-    return text.replace(
-      /\$([^$]*(\\frac|\\partial|\\int|\\sum|\\nabla|\\hat|\\sqrt|\\Psi|\\psi|\\hbar)[^$]*)\$/g,
-      (_, equation) => {
-        return `\n\n$$\n${equation.trim()}\n$$\n\n`;
-      }
-    );
+  const removeOrphanDollars = (text) => {
+    return text
+      .split("\n")
+      .filter((line) => line.trim() !== "$")
+      .join("\n");
   };
 
-  const cleanMathOutput = (text) => {
-    let cleaned = text
+  const normalizeMathDelimiters = (text) => {
+    return text
       .replace(/\\\[/g, "$$")
       .replace(/\\\]/g, "$$")
       .replace(/\\\(/g, "$")
       .replace(/\\\)/g, "$");
+  };
 
-    cleaned = fixOneLineTables(cleaned);
-    cleaned = fixBrokenTables(cleaned);
-    cleaned = fixInlineEquations(cleaned);
+  const cleanBrokenMarkdown = (text) => {
+    let cleaned = text;
 
     cleaned = cleaned.replace(/\n{4,}/g, "\n\n\n");
 
+    cleaned = cleaned.replace(/\|\s*\n\s*\|/g, "|\n|");
+
+    cleaned = cleaned.replace(/\n\s*\|\s*\n/g, "\n");
+
+    cleaned = cleaned.replace(/\n\s*\|\s*$/gm, "");
+
+    cleaned = cleaned.replace(/^\s*\|\s*$/gm, "");
+
     return cleaned;
+  };
+
+  const cleanMathOutput = (text) => {
+    let cleaned = text;
+
+    cleaned = normalizeMathDelimiters(cleaned);
+    cleaned = fixOneLineTables(cleaned);
+    cleaned = removeOrphanDollars(cleaned);
+    cleaned = cleanBrokenMarkdown(cleaned);
+
+    return cleaned.trim();
   };
 
   const handleGenerate = async () => {
@@ -152,24 +148,31 @@ function App() {
     const element = resultRef.current;
 
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 1.2,
       useCORS: true,
       backgroundColor: "#ffffff",
       windowWidth: element.scrollWidth,
       windowHeight: element.scrollHeight,
       onclone: (clonedDoc) => {
         const clonedElement = clonedDoc.querySelector(".pdf-content");
+
         if (clonedElement) {
           clonedElement.style.background = "#ffffff";
           clonedElement.style.color = "#1e293b";
           clonedElement.style.width = "1000px";
+          clonedElement.style.borderRadius = "0";
         }
       },
     });
 
-    const imgData = canvas.toDataURL("image/png");
+    const imgData = canvas.toDataURL("image/jpeg", 0.72);
 
-    const pdf = new jsPDF("p", "mm", "a4");
+    const pdf = new jsPDF({
+      orientation: "p",
+      unit: "mm",
+      format: "a4",
+      compress: true,
+    });
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -180,13 +183,34 @@ function App() {
     let heightLeft = imgHeight;
     let position = 0;
 
-    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    pdf.addImage(
+      imgData,
+      "JPEG",
+      0,
+      position,
+      imgWidth,
+      imgHeight,
+      undefined,
+      "FAST"
+    );
+
     heightLeft -= pdfHeight;
 
     while (heightLeft > 0) {
       position = heightLeft - imgHeight;
       pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+
+      pdf.addImage(
+        imgData,
+        "JPEG",
+        0,
+        position,
+        imgWidth,
+        imgHeight,
+        undefined,
+        "FAST"
+      );
+
       heightLeft -= pdfHeight;
     }
 
@@ -201,6 +225,7 @@ function App() {
     setLoadingText("");
 
     const fileInput = document.querySelector('input[type="file"]');
+
     if (fileInput) {
       fileInput.value = "";
     }
@@ -223,16 +248,19 @@ function App() {
         <div className="input-section">
           <div className="input-group">
             <label>Upload Your PDF</label>
+
             <input
               type="file"
               accept="application/pdf"
               onChange={handleFileChange}
             />
+
             {pdfFile && <p className="file-name">Selected: {pdfFile.name}</p>}
           </div>
 
           <div className="input-group">
             <label>Select Output Type</label>
+
             <select
               value={outputType}
               onChange={(e) => setOutputType(e.target.value)}
