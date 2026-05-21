@@ -351,11 +351,11 @@ Correct:
 
 | Quantity | Operator | Meaning |
 |---|---|---|
-| Position | $\\hat{x} = x$ | Measures position |
+| Position | $\\hat{{x}} = x$ | Measures position |
 | Momentum | See formula below | Measures momentum |
 
 $$
-\\hat{p} = -i\\hbar \\frac{\\partial}{\\partial x}
+\\hat{{p}} = -i\\hbar \\frac{{\\partial}}{{\\partial x}}
 $$
 
 Wrong:
@@ -456,7 +456,6 @@ def repair_one_line_tables(text):
         stripped = line.strip()
 
         if stripped.startswith("|") and stripped.count("|") >= 8:
-            # Split where two table rows got joined: | |
             possible_rows = re.split(r"\|\s+\|", stripped)
 
             fixed_rows = []
@@ -491,8 +490,8 @@ def repair_one_line_tables(text):
 
 def protect_tables_from_long_equations(text):
     """
-    Attempts to prevent broken display equations inside Markdown table rows.
-    If a table row contains too much LaTeX, replace the cell with 'See formula below'
+    Prevents long equations inside Markdown table cells.
+    If a table row contains long LaTeX, replace it with 'See formula below'
     and place the formula after the table.
     """
     lines = text.split("\n")
@@ -507,16 +506,21 @@ def protect_tables_from_long_equations(text):
         if is_table_line:
             in_table = True
 
-            # Detect long formula inside table row
-            has_long_formula = any(token in line for token in [
-                "\\frac", "\\partial", "\\int", "\\sum", "\\nabla"
-            ])
+            has_long_formula = any(
+                token in line for token in [
+                    "\\frac", "\\partial", "\\int", "\\sum", "\\nabla"
+                ]
+            )
 
             if has_long_formula and len(line) > 120:
                 formulas = re.findall(r"\$([^$]+)\$", line)
 
                 for formula in formulas:
-                    if any(token in formula for token in ["\\frac", "\\partial", "\\int", "\\sum", "\\nabla"]):
+                    if any(
+                        token in formula for token in [
+                            "\\frac", "\\partial", "\\int", "\\sum", "\\nabla"
+                        ]
+                    ):
                         delayed_formulas.append(formula)
 
                 line = re.sub(r"\$[^$]+?\$", "See formula below", line)
@@ -548,7 +552,7 @@ def protect_tables_from_long_equations(text):
 
 def normalize_markdown_tables(text):
     """
-    Adds blank lines around tables for proper rendering.
+    Adds blank lines around Markdown tables for proper rendering.
     """
     lines = text.split("\n")
     output = []
@@ -583,11 +587,9 @@ def remove_broken_pipe_lines(text):
     for line in lines:
         stripped = line.strip()
 
-        # Remove lines that are only a single pipe
         if stripped == "|":
             continue
 
-        # Remove lines like "| Momentum |" that are incomplete table fragments
         if stripped.startswith("|") and stripped.endswith("|"):
             cell_count = stripped.count("|") - 1
             if cell_count <= 1 and "---" not in stripped:
@@ -609,7 +611,6 @@ def clean_ai_output(text):
     text = remove_orphan_dollars(text)
     text = remove_broken_pipe_lines(text)
 
-    # Clean too many blank lines
     text = re.sub(r"\n{4,}", "\n\n\n", text)
 
     return text.strip()
@@ -619,13 +620,11 @@ def process_pdf_chunks(chunks, output_type):
     if not chunks:
         raise Exception("No readable text found in this PDF")
 
-    # Small PDF: direct generation
     if len(chunks) == 1:
         prompt = create_prompt(chunks[0], output_type)
         output = generate_with_groq(prompt, max_tokens=2200)
         return clean_ai_output(output)
 
-    # Large PDF: chunk processing
     partial_summaries = []
 
     for index, chunk in enumerate(chunks):
@@ -652,7 +651,7 @@ def process_pdf_chunks(chunks, output_type):
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
-        "message": "ExamEase AI backend is running with improved table and equation formatting"
+        "message": "ExamEase AI backend is running with fixed f-string LaTeX syntax"
     })
 
 
