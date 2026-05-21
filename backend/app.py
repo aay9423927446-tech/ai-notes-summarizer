@@ -26,12 +26,44 @@ MAX_CHUNKS = 6
 
 
 COMMON_RULES = """
-Formatting rules:
+Formatting and design rules:
 - Use proper Markdown headings.
+- Use clean exam-oriented formatting.
+- Make the output look like a professional exam-preparation PDF.
+- Use clear section headings like:
+  ## UNIT 1 — Topic Name
+  ### Q1. Question Name
 - Use bullet points where needed.
-- Do not create Markdown tables using | | |.
-- Do not put many formulas in one horizontal line.
-- If content has a table, convert it into a clean bullet list or numbered list.
+- Keep language simple and student-friendly.
+
+Question boxes:
+- For important exam questions, write them like this:
+> **Exam Question:** Write the actual question here.
+
+Note boxes:
+- For important tips, write them like this:
+> **Note:** Write the exam tip here.
+
+Diagram boxes:
+- If a diagram is needed, add a section like this:
+> **Diagram to draw:** Describe the labelled diagram clearly.
+> Include labels, direction of current/voltage, components, and what the student should draw.
+
+Tables:
+- Use Markdown tables when they improve readability.
+- Use tables for:
+  - Truth tables
+  - Comparison tables
+  - Formula summary tables
+  - Advantages vs disadvantages
+- Keep tables short and readable.
+- Do not put many formulas in one long table row.
+- If making a table, always use proper Markdown table format:
+  | Heading 1 | Heading 2 |
+  |---|---|
+  | Data | Data |
+
+Equations:
 - Write all equations in clean KaTeX-compatible LaTeX.
 - For inline equations, use $...$.
 - For big equations, use only this format:
@@ -43,10 +75,8 @@ $$
 - Do not use \\[ \\].
 - Do not use \\( \\).
 - Do not start equations with [ or end with ].
-- Do not write equations in Markdown tables.
-- Do not write raw LaTeX as normal text.
 - Put each major formula on a separate line.
-- Keep the answer student-friendly and exam-oriented.
+- Keep formulas clean and readable.
 
 Correct equation format examples:
 
@@ -115,6 +145,9 @@ Make the answer:
 - Include definitions, formulas, and important concepts
 - Use proper headings
 - Explain formulas clearly
+- Include important exam notes
+- Add diagram-to-draw boxes wherever diagrams are needed
+- Use tables only when they improve readability
 - Do not copy long paragraphs directly
 
 {COMMON_RULES}
@@ -136,6 +169,13 @@ Divide them into:
 4. Numericals if present
 5. Viva questions
 
+Rules:
+- Use question boxes for important questions
+- Add short hints below difficult questions
+- Add formulas where needed
+- Add diagram-to-draw boxes for theory questions needing diagrams
+- Use clean Markdown tables only for comparison questions
+
 For numerical/formula-based questions:
 - Write formulas using proper LaTeX
 - Put important formulas in display format using $$...$$
@@ -156,6 +196,8 @@ Rules:
 - Add short explanation
 - Use simple exam-level language
 - If formula-based MCQs are present, write equations using LaTeX math format
+- Use clean numbering
+- Do not make the answer too lengthy
 
 {COMMON_RULES}
 
@@ -173,11 +215,11 @@ Rules:
 - Explain symbols below each formula
 - Add where each formula is used
 - Keep it short and exam-oriented
-- Do not put formulas inside Markdown tables
-- If the PDF contains a table, convert it into bullet points
-- Never generate table format using | symbols
-- Write one formula per line, not side by side
+- Use tables only for compact formula summaries if they are readable
+- If the PDF contains a table, convert it into a clean Markdown table or bullet list
+- Write one major formula per line, not side by side
 - Make equations look like textbook-style equations
+- Add note boxes for common exam mistakes
 
 Use this format:
 
@@ -191,6 +233,8 @@ Where:
 - $symbol$ = meaning
 
 Used for: explanation.
+
+> **Note:** Important exam tip here.
 
 {COMMON_RULES}
 
@@ -208,6 +252,8 @@ Rules:
 - Focus on exam and oral viva preparation
 - Use student-friendly language
 - If any answer contains a formula, write it using LaTeX math format
+- Use clean numbering
+- Add important viva tips as note boxes
 
 {COMMON_RULES}
 
@@ -236,9 +282,13 @@ Rules:
 - Extract important concepts
 - Extract definitions
 - Extract formulas
+- Extract tables if they are important
 - Keep it concise
 - Use bullet points
 - Use proper LaTeX for equations
+- Use Markdown tables only when useful
+- Add note boxes for exam tips
+- Add diagram-to-draw boxes if a diagram is needed
 - Do not make long explanations
 
 {COMMON_RULES}
@@ -265,8 +315,12 @@ Rules:
 - Use simple student-friendly language
 - Preserve important formulas
 - Use clean LaTeX equations
-- Do not create Markdown tables with | symbols
-- If table-like data exists, convert it into bullet points
+- Use clean Markdown tables when useful, especially for truth tables, comparison tables, and formula summaries
+- If table-like data exists, convert it into a proper Markdown table or bullet list
+- Add exam question boxes where needed
+- Add note boxes for important tips
+- Add diagram-to-draw boxes wherever diagrams are required
+- Make the final answer look like a professional exam-prep PDF
 
 {COMMON_RULES}
 
@@ -293,7 +347,10 @@ Very important:
 - Never use \\[ \\] or \\( \\).
 - Never write equations as plain text.
 - Never start equations with square brackets like [i\\hbar.
-- Never create Markdown tables using | symbols.
+- Use Markdown tables only when they improve readability.
+- Keep tables short and properly formatted.
+- Use note boxes and exam question boxes using Markdown blockquotes.
+- Make output suitable for an attractive downloaded study-notes PDF.
 """
                     },
                     {
@@ -355,7 +412,7 @@ def process_pdf_chunks(chunks, output_type):
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
-        "message": "ExamEase AI backend is running with balanced large PDF support"
+        "message": "ExamEase AI backend is running with attractive PDF formatting support"
     })
 
 
