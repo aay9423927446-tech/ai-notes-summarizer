@@ -45,12 +45,18 @@ function App() {
 
       setTimeout(() => setLoadingText("Extracting important concepts..."), 1200);
       setTimeout(() => setLoadingText("Creating exam-ready notes..."), 2500);
-      setTimeout(() => setLoadingText("Formatting formulas and answers..."), 4000);
+      setTimeout(
+        () => setLoadingText("Large PDFs may take 1–3 minutes. Please wait..."),
+        4000
+      );
 
-      const response = await fetch("https://ai-notes-summarizer-vfus.onrender.com/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        "https://ai-notes-summarizer-vfus.onrender.com/upload",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       const data = await response.json();
 
@@ -141,13 +147,20 @@ function App() {
         <div className="input-section">
           <div className="input-group">
             <label>Upload Your PDF</label>
-            <input type="file" accept="application/pdf" onChange={handleFileChange} />
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={handleFileChange}
+            />
             {pdfFile && <p className="file-name">Selected: {pdfFile.name}</p>}
           </div>
 
           <div className="input-group">
             <label>Select Output Type</label>
-            <select value={outputType} onChange={(e) => setOutputType(e.target.value)}>
+            <select
+              value={outputType}
+              onChange={(e) => setOutputType(e.target.value)}
+            >
               <option>Summary</option>
               <option>Important Questions</option>
               <option>MCQs</option>
@@ -157,7 +170,11 @@ function App() {
           </div>
 
           <div className="button-row">
-            <button className="generate-btn" onClick={handleGenerate} disabled={loading}>
+            <button
+              className="generate-btn"
+              onClick={handleGenerate}
+              disabled={loading}
+            >
               {loading ? "Generating..." : "Generate Notes"}
             </button>
 
