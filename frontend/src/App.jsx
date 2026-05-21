@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -10,7 +11,9 @@ import "./App.css";
 function App() {
   const [pdfFile, setPdfFile] = useState(null);
   const [outputType, setOutputType] = useState("Summary");
-  const [result, setResult] = useState("Your AI-generated notes will appear here.");
+  const [result, setResult] = useState(
+    "Your AI-generated notes will appear here."
+  );
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
 
@@ -20,12 +23,71 @@ function App() {
     setPdfFile(e.target.files[0]);
   };
 
+  const fixBrokenTables = (text) => {
+    const lines = text.split("\n");
+    const fixedLines = [];
+
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+
+      if (trimmed.startsWith("|") && trimmed.includes("|---") && trimmed.count) {
+        fixedLines.push(line);
+        return;
+      }
+
+      if (trimmed.startsWith("|") && trimmed.split("|").length > 8) {
+        let repaired = trimmed
+          .replace(/\|\s+\|/g, "|\n|")
+          .replace(/\|\|/g, "|\n|");
+
+        fixedLines.push("");
+        fixedLines.push(repaired);
+        fixedLines.push("");
+      } else {
+        fixedLines.push(line);
+      }
+    });
+
+    return fixedLines.join("\n");
+  };
+
+  const fixOneLineTables = (text) => {
+    return text.replace(
+      /(\|[^|\n]+(?:\|[^|\n]+)+\|)\s+(\|[-:\s|]+\|)\s+((?:\|[^|\n]+(?:\|[^|\n]+)+\|\s*)+)/g,
+      (match, header, separator, rows) => {
+        const fixedRows = rows
+          .trim()
+          .replace(/\|\s+\|/g, "|\n|")
+          .replace(/\|\|/g, "|\n|");
+
+        return `\n${header}\n${separator}\n${fixedRows}\n`;
+      }
+    );
+  };
+
+  const fixInlineEquations = (text) => {
+    return text.replace(
+      /\$([^$]*(\\frac|\\partial|\\int|\\sum|\\nabla|\\hat|\\sqrt|\\Psi|\\psi|\\hbar)[^$]*)\$/g,
+      (_, equation) => {
+        return `\n\n$$\n${equation.trim()}\n$$\n\n`;
+      }
+    );
+  };
+
   const cleanMathOutput = (text) => {
-    return text
+    let cleaned = text
       .replace(/\\\[/g, "$$")
       .replace(/\\\]/g, "$$")
       .replace(/\\\(/g, "$")
       .replace(/\\\)/g, "$");
+
+    cleaned = fixOneLineTables(cleaned);
+    cleaned = fixBrokenTables(cleaned);
+    cleaned = fixInlineEquations(cleaned);
+
+    cleaned = cleaned.replace(/\n{4,}/g, "\n\n\n");
+
+    return cleaned;
   };
 
   const handleGenerate = async () => {
@@ -60,13 +122,17 @@ function App() {
 
       const data = await response.json();
 
-      if (data.error) {
+      if (!response.ok) {
+        setResult("Backend Error: " + (data.error || "Unknown backend error"));
+      } else if (data.error) {
         setResult("Error: " + data.error);
       } else {
         setResult(cleanMathOutput(data.text));
       }
     } catch (error) {
-      setResult("Something went wrong. Make sure backend is running.");
+      setResult(
+        "Network/Backend Error: The backend did not respond properly. This may happen if Render is waking up, redeploying, or the PDF is too large. Please wait 1 minute and try again."
+      );
     } finally {
       setLoading(false);
       setLoadingText("");
@@ -89,6 +155,16 @@ function App() {
       scale: 2,
       useCORS: true,
       backgroundColor: "#ffffff",
+      windowWidth: element.scrollWidth,
+      windowHeight: element.scrollHeight,
+      onclone: (clonedDoc) => {
+        const clonedElement = clonedDoc.querySelector(".pdf-content");
+        if (clonedElement) {
+          clonedElement.style.background = "#ffffff";
+          clonedElement.style.color = "#1e293b";
+          clonedElement.style.width = "1000px";
+        }
+      },
     });
 
     const imgData = canvas.toDataURL("image/png");
@@ -198,11 +274,14 @@ function App() {
 
       <div className="result-box">
         <div className="pdf-content" ref={resultRef}>
-          <h2>Generated Output</h2>
+          <div className="pdf-header">
+            <h2>ExamEase AI Notes</h2>
+            <p>{outputType} · Generated from your uploaded PDF</p>
+          </div>
 
           <div className="markdown-output">
             <ReactMarkdown
-              remarkPlugins={[remarkMath]}
+              remarkPlugins={[remarkMath, remarkGfm]}
               rehypePlugins={[rehypeKatex]}
             >
               {result}

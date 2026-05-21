@@ -45,6 +45,7 @@ body {
   margin-bottom: 14px;
   line-height: 1.2;
   padding-bottom: 8px;
+  text-shadow: 0 0 30px rgba(147, 197, 253, 0.35);
 }
 
 .subtitle {
@@ -54,6 +55,8 @@ body {
   max-width: 760px;
   margin: 0 auto;
 }
+
+/* Main input card */
 
 .main-card {
   width: 100%;
@@ -159,124 +162,6 @@ button {
   box-shadow: 0 18px 35px rgba(34, 197, 94, 0.35);
 }
 
-.result-box {
-  width: 100%;
-  max-width: 1180px;
-  margin: 35px auto 0;
-  border-radius: 24px;
-  background: #ffffff;
-  color: #1e293b;
-  overflow: hidden;
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
-  border: 1px solid #e2e8f0;
-}
-
-.pdf-content {
-  background: white;
-  color: #1e293b;
-  padding: 38px 48px;
-  min-height: 300px;
-}
-
-.pdf-content h2 {
-  text-align: center;
-  color: #0f172a;
-  font-size: 30px;
-  margin-bottom: 30px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-.markdown-output {
-  color: #334155;
-  line-height: 1.85;
-  font-size: 18px;
-  text-align: left;
-}
-
-.markdown-output h1 {
-  font-size: 34px;
-  color: #0f172a;
-  margin: 28px 0 16px;
-}
-
-.markdown-output h2 {
-  font-size: 28px;
-  color: #1e293b;
-  margin: 26px 0 14px;
-}
-
-.markdown-output h3 {
-  font-size: 23px;
-  color: #334155;
-  margin: 22px 0 12px;
-}
-
-.markdown-output p {
-  margin-bottom: 16px;
-}
-
-.markdown-output ul,
-.markdown-output ol {
-  margin-left: 32px;
-  margin-bottom: 20px;
-}
-
-.markdown-output li {
-  margin-bottom: 12px;
-}
-
-.markdown-output strong {
-  color: #0f172a;
-}
-
-.markdown-output hr {
-  border: none;
-  height: 1px;
-  background: #cbd5e1;
-  margin: 28px 0;
-}
-
-.katex-display {
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 18px 0;
-  margin: 22px 0;
-  text-align: center;
-}
-
-.katex {
-  font-size: 1.25em;
-}
-
-@media (max-width: 768px) {
-  .hero h1 {
-    font-size: 42px;
-    line-height: 1.2;
-    padding-bottom: 6px;
-  }
-
-  .subtitle {
-    font-size: 16px;
-  }
-
-  .input-section {
-    grid-template-columns: 1fr;
-  }
-
-  .button-row {
-    grid-column: span 1;
-    flex-direction: column;
-  }
-
-  .pdf-content {
-    padding: 24px;
-  }
-
-  .markdown-output {
-    font-size: 16px;
-  }
-}
 .reset-btn {
   flex: 0.5;
   background: linear-gradient(135deg, #475569, #64748b);
@@ -288,6 +173,8 @@ button {
   transform: translateY(-2px);
   box-shadow: 0 18px 35px rgba(100, 116, 139, 0.35);
 }
+
+/* Loading animation */
 
 .loading-box {
   grid-column: span 2;
@@ -319,12 +206,287 @@ button {
   }
 }
 
+/* Result box */
+
+.result-box {
+  width: 100%;
+  max-width: 1180px;
+  margin: 35px auto 0;
+  border-radius: 26px;
+  background: #ffffff;
+  color: #1e293b;
+  overflow: hidden;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+  border: 1px solid #e2e8f0;
+}
+
+/* Downloaded PDF content design */
+
+.pdf-content {
+  background: #ffffff;
+  color: #1e293b;
+  padding: 42px 52px;
+  min-height: 300px;
+  border-radius: 18px;
+}
+
+/* PDF header */
+
+.pdf-header {
+  text-align: center;
+  margin-bottom: 34px;
+  padding: 22px;
+  border-bottom: 4px solid #1e3a8a;
+  background: linear-gradient(90deg, #eff6ff, #ffffff, #eff6ff);
+  border-radius: 12px;
+}
+
+.pdf-header h2 {
+  color: #1e3a8a;
+  font-size: 34px;
+  margin-bottom: 6px;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.pdf-header p {
+  color: #475569;
+  font-size: 15px;
+  margin: 0;
+}
+
+/* Markdown output */
+
+.markdown-output {
+  color: #243447;
+  line-height: 1.85;
+  font-size: 17px;
+  text-align: left;
+  overflow-wrap: break-word;
+}
+
+.markdown-output h1 {
+  font-size: 34px;
+  color: #0f172a;
+  margin: 32px 0 18px;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #bfdbfe;
+}
+
+.markdown-output h2 {
+  font-size: 28px;
+  color: #1e3a8a;
+  margin: 34px 0 16px;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, #dbeafe, #ffffff);
+  border-left: 7px solid #1d4ed8;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.markdown-output h3 {
+  font-size: 22px;
+  color: #1e40af;
+  margin: 24px 0 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-left: 5px solid #60a5fa;
+  border-radius: 6px;
+}
+
+.markdown-output h4 {
+  font-size: 19px;
+  color: #0f172a;
+  margin: 18px 0 10px;
+}
+
+.markdown-output p {
+  margin-bottom: 14px;
+}
+
+.markdown-output ul,
+.markdown-output ol {
+  margin-left: 30px;
+  margin-bottom: 18px;
+}
+
+.markdown-output li {
+  margin-bottom: 9px;
+}
+
+.markdown-output strong {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.markdown-output hr {
+  border: none;
+  height: 2px;
+  background: #dbeafe;
+  margin: 30px 0;
+}
+
+.markdown-output code {
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 0.95em;
+}
+
+/* Yellow note / exam question / diagram boxes */
+
+.markdown-output blockquote {
+  margin: 20px 0;
+  padding: 16px 18px;
+  background: #fff7ed;
+  border: 2px solid #fbbf24;
+  border-left: 8px solid #f59e0b;
+  border-radius: 10px;
+  color: #1e293b;
+  font-weight: 500;
+  page-break-inside: avoid;
+}
+
+.markdown-output blockquote p {
+  margin-bottom: 8px;
+}
+
+.markdown-output blockquote strong {
+  color: #92400e;
+}
+
+/* Proper attractive tables */
+
+.markdown-output table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-size: 15px;
+  background: white;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  page-break-inside: avoid;
+  table-layout: fixed;
+}
+
+.markdown-output thead {
+  background: #1e3a8a;
+  color: white;
+}
+
+.markdown-output th {
+  background: #1e3a8a;
+  color: white;
+  font-weight: 700;
+  padding: 12px 14px;
+  border: 1px solid #1e40af;
+  text-align: center;
+  word-break: break-word;
+}
+
+.markdown-output td {
+  padding: 11px 14px;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.markdown-output tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.markdown-output tr:nth-child(odd) td {
+  background: #ffffff;
+}
+
+/* Formula design */
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 18px 12px;
+  margin: 22px auto;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 10px;
+  page-break-inside: avoid;
+  max-width: 100%;
+}
+
+.katex {
+  font-size: 1.22em;
+}
+
+/* Mobile responsive */
+
 @media (max-width: 768px) {
+  .app {
+    padding: 28px 12px;
+  }
+
+  .hero h1 {
+    font-size: 42px;
+    line-height: 1.2;
+    padding-bottom: 6px;
+  }
+
+  .subtitle {
+    font-size: 16px;
+  }
+
+  .main-card {
+    padding: 18px;
+  }
+
+  .input-section {
+    grid-template-columns: 1fr;
+  }
+
+  .button-row {
+    grid-column: span 1;
+    flex-direction: column;
+  }
+
   .reset-btn {
     flex: 1;
   }
 
   .loading-box {
     grid-column: span 1;
+  }
+
+  .pdf-content {
+    padding: 24px;
+  }
+
+  .pdf-header h2 {
+    font-size: 26px;
+  }
+
+  .markdown-output {
+    font-size: 16px;
+  }
+
+  .markdown-output h1 {
+    font-size: 28px;
+  }
+
+  .markdown-output h2 {
+    font-size: 23px;
+  }
+
+  .markdown-output h3 {
+    font-size: 20px;
+  }
+
+  .markdown-output table {
+    font-size: 13px;
+  }
+
+  .markdown-output th,
+  .markdown-output td {
+    padding: 8px;
   }
 }
