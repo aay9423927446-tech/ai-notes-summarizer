@@ -148,7 +148,7 @@ function App() {
     const isFormulaSheet = outputType === "Formula Sheet";
 
     const canvas = await html2canvas(element, {
-      scale: isFormulaSheet ? 1.1 : 1.2,
+      scale: isFormulaSheet ? 1.05 : 1.2,
       useCORS: true,
       backgroundColor: "#ffffff",
       windowWidth: element.scrollWidth,
@@ -159,13 +159,13 @@ function App() {
         if (clonedElement) {
           clonedElement.style.background = "#ffffff";
           clonedElement.style.color = "#1e293b";
-          clonedElement.style.width = isFormulaSheet ? "1450px" : "1000px";
+          clonedElement.style.width = isFormulaSheet ? "1550px" : "1000px";
           clonedElement.style.borderRadius = "0";
         }
       },
     });
 
-    const imgData = canvas.toDataURL("image/jpeg", 0.74);
+    const imgData = canvas.toDataURL("image/jpeg", 0.72);
 
     const pdf = new jsPDF({
       orientation: isFormulaSheet ? "l" : "p",
@@ -274,7 +274,10 @@ function App() {
 
         <div className="formula-card-grid">
           {formulaCards.map((card, index) => (
-            <div className={`formula-card card-color-${(index % 6) + 1}`} key={index}>
+            <div
+              className={`formula-card card-color-${(index % 8) + 1}`}
+              key={index}
+            >
               <ReactMarkdown
                 remarkPlugins={markdownPlugins}
                 rehypePlugins={rehypePlugins}

@@ -21,7 +21,6 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 MODEL_NAME = "llama-3.1-8b-instant"
 
-# Balanced settings
 MAX_CHUNK_CHARS = 3500
 MAX_CHUNKS = 6
 
@@ -62,13 +61,6 @@ TABLE RULES:
 - If a formula is long, write "See formula below" in the table cell and put the full formula below the table.
 - Do not leave incomplete rows like "| Momentum |".
 
-Correct table format:
-
-| Topic | Meaning | Exam Use |
-|---|---|---|
-| Logic Gate | Basic digital circuit | Asked in 2-mark questions |
-| Boolean Algebra | Algebra for binary variables | Used in simplification |
-
 EQUATION RULES:
 - Use KaTeX-compatible LaTeX.
 - Use $...$ only for small inline expressions.
@@ -78,6 +70,22 @@ EQUATION RULES:
 - Do not write lone $ symbols.
 - Do not write equations as plain broken text.
 - Put every important equation on its own display block.
+
+SOLVED EXAMPLE RULES:
+Always write examples in this format:
+
+### Example Title
+
+**Given:**
+- Given data or expression
+
+**Solution:**
+1. Step one
+2. Step two
+3. Step three
+
+**Final Answer:**
+Final answer here.
 
 FINAL CHECK:
 - No lone $ symbols.
@@ -140,11 +148,14 @@ You are an exam preparation assistant.
 Create a LONG DETAILED SUMMARY from the uploaded PDF content.
 
 IMPORTANT:
-- This must be a proper study-notes summary.
-- It should be detailed enough to become at least 5 pages when downloaded as PDF.
-- Do not make it short.
-- Do not make it look like a question bank.
-- Explain each topic clearly in exam-oriented language.
+- This must be proper study notes, not a question bank.
+- The output must be long enough to become minimum 5 PDF pages.
+- Target 1600 to 2200 words if enough content exists.
+- Do not make short sections.
+- Explain every topic clearly.
+- Add examples wherever possible.
+- Add at least 12 to 18 quick revision points.
+- Do not add irrelevant content outside the PDF topic.
 
 STRICT SUMMARY FORMAT:
 
@@ -153,46 +164,57 @@ STRICT SUMMARY FORMAT:
 ## UNIT / TOPIC NAME
 
 ### 1. Introduction
-Write a proper introduction in 5-8 lines.
+Write a detailed introduction in 8 to 12 lines.
 
 ### 2. Important Concepts
-Explain all important concepts in detail using bullet points.
-Each concept should have a short explanation.
+Explain each important concept in detail.
+Use bullet points, but each point must have explanation.
 
 ### 3. Definitions
-List important definitions.
-Each definition should be written clearly for exam use.
+Give important definitions clearly.
+Each definition should be exam-ready.
 
 ### 4. Detailed Explanation of Topics
-Explain major subtopics one by one.
-Use headings and subheadings.
-Write enough content for revision.
+Explain every major subtopic one by one.
+Add subheadings.
+Give detailed explanation, not just one-line points.
 
 ### 5. Important Formulas / Laws / Rules
-Write formulas, Boolean laws, rules, or expressions if present.
+Write all formulas, laws, rules, expressions, or theorems present in the PDF.
 Use display math for important formulas.
 
 ### 6. Important Tables
-Use tables for comparison, truth tables, laws, gates, properties, or classifications.
+Use tables for:
+- Comparisons
+- Truth tables
+- Laws
+- Gates
+- Properties
+- Classifications
 
 ### 7. Solved / Explanation Examples
-If examples are present in the PDF, explain them step-by-step.
+Add solved examples if present.
+Use this format only:
+Given:
+Solution:
+Final Answer:
 
 ### 8. Diagram to Draw
 > **Diagram to draw:** Mention diagrams students should practice.
 
 ### 9. Short Exam Notes
-> **Note:** Add important exam tips and common mistakes.
+> **Note:** Add exam tips and common mistakes.
 
 ### 10. Quick Revision Points
-Give 10-15 quick revision points at the end.
+Give 12 to 18 quick revision points.
 
 DO NOT:
 - Do not create 2-mark, 5-mark, 10-mark sections.
-- Do not create a question bank.
 - Do not create MCQs.
-- Do not make it short.
-- Add at most 2 important exam questions at the end only.
+- Do not create a question bank.
+- Do not write headings like "Formula Below".
+- Do not write "Long Formulas" as a separate awkward section.
+- Do not keep the summary under 5 pages.
 
 {COMMON_RULES}
 
@@ -224,6 +246,9 @@ Q2. Write the question.
 Answer: Give a short 2-3 line answer.
 
 Q3. Write the question.
+Answer: Give a short 2-3 line answer.
+
+Q4. Write the question.
 Answer: Give a short 2-3 line answer.
 
 ## 5-Mark Questions
@@ -353,14 +378,22 @@ Create ONLY a COMPACT 16:9 FORMULA SHEET from the PDF content.
 This should look like a formula cheat sheet, not normal notes.
 
 IMPORTANT:
-- Use card-based sections.
-- Each card should be compact.
+- Use dense card-based sections.
+- Each card should contain formulas, laws, rules, truth tables, diagram hints, and exam use.
 - Do not write long paragraphs.
-- Use short labels and formulas.
-- Include diagram instructions only if needed.
-- Include truth tables or law tables if useful.
+- Do not create generic cards if specific cards are possible.
 - Use only formulas/laws/rules from the uploaded PDF.
 - Do not add unrelated formulas.
+
+For Digital Electronics, prefer cards like:
+- Basic Logic Gates
+- Universal Gates
+- Boolean Laws
+- De Morgan's Theorems
+- Truth Tables
+- Simplification Rules
+- SOP / POS Forms
+- Important Exam Formula Table
 
 STRICT FORMULA SHEET FORMAT:
 
@@ -368,7 +401,7 @@ STRICT FORMULA SHEET FORMAT:
 
 **Topic 1 • Topic 2 • Topic 3 • Important Laws • Tables • Diagrams**
 
-## CARD 1: Topic Name
+## CARD 1: Specific Topic Name
 
 **Diagram:** Short diagram instruction if required.
 
@@ -382,29 +415,17 @@ $$
 - Point 1
 - Point 2
 - Point 3
+- Point 4
+
+**Truth Table / Law Table:** Add if useful.
 
 **Exam Use:** Where this formula/rule is used.
 
 > **Note:** Short exam tip.
 
-## CARD 2: Topic Name
+## CARD 2: Specific Topic Name
 
-**Main Formula / Rule:**
-
-$$
-formula here
-$$
-
-**Important Points:**
-- Point 1
-- Point 2
-- Point 3
-
-**Exam Use:** Usage.
-
-## CARD 3: Topic Name
-
-Continue same card format.
+Continue same compact card format.
 
 ## QUICK FORMULAS / LAWS
 
@@ -413,7 +434,7 @@ Continue same card format.
 | Law name | Short expression | Use |
 
 RULES:
-- Generate 6 to 8 cards if enough content is available.
+- Generate 8 to 10 compact cards if enough content is available.
 - Each card must be compact.
 - Use tables for truth tables, Boolean laws, comparisons, or properties.
 - Do not create Summary sections.
@@ -472,16 +493,18 @@ You are reading part {chunk_number} of {total_chunks} from a college PDF.
 Extract DETAILED SUMMARY MATERIAL only.
 
 Return:
-- Important concepts
+- Important concepts with explanation
 - Definitions
 - Detailed explanations
 - Important formulas/laws/rules
 - Useful tables
+- Solved examples in Given/Solution/Final Answer format
 - Diagram points
 - Short exam notes
 - Quick revision points
 
 Do NOT create a question bank.
+Make this detailed enough for long summary notes.
 
 {COMMON_RULES}
 
@@ -495,8 +518,7 @@ You are reading part {chunk_number} of {total_chunks} from a college PDF.
 
 Extract ONLY exam questions from this part.
 
-Return in this rough format:
-
+Return:
 ## Possible 2-Mark Questions
 Q. Question?
 Ans: Short answer.
@@ -526,7 +548,7 @@ Solution:
 Q. Question?
 Ans: Short answer.
 
-Do NOT write summary sections like Important Concepts, Definitions, Notes, or Diagram to Draw as main headings.
+Do NOT write summary sections.
 
 {COMMON_RULES}
 
@@ -550,8 +572,6 @@ D. Option D
 Correct Answer: A
 Explanation: Short explanation.
 
-Do not write summary or theory notes.
-
 {COMMON_RULES}
 
 PDF Part {chunk_number}/{total_chunks}:
@@ -565,8 +585,7 @@ You are reading part {chunk_number} of {total_chunks} from a college PDF.
 Extract ONLY formula-sheet material.
 
 Return compact cards:
-
-## CARD: Topic Name
+## CARD: Specific Topic Name
 
 **Main Formula / Rule:**
 
@@ -577,13 +596,15 @@ $$
 **Important Points:**
 - Point 1
 - Point 2
+- Point 3
+
+**Truth Table / Law Table:** Add if useful.
 
 **Exam Use:** Usage.
 
-Also extract useful tables such as truth tables, Boolean law tables, or formula comparison tables.
-
 Do not write long notes.
 Do not create question answers.
+Prefer specific cards over generic cards.
 
 {COMMON_RULES}
 
@@ -595,7 +616,7 @@ PDF Part {chunk_number}/{total_chunks}:
         return f"""
 You are reading part {chunk_number} of {total_chunks} from a college PDF.
 
-Extract ONLY viva questions and short answers from this part.
+Extract ONLY viva questions and short answers.
 
 Format:
 Q1. Question?
@@ -603,8 +624,6 @@ Ans: Short answer.
 
 Q2. Question?
 Ans: Short answer.
-
-Do not write summary sections.
 
 {COMMON_RULES}
 
@@ -642,13 +661,16 @@ STRICT FINAL SUMMARY FORMAT:
 ### 10. Quick Revision Points
 
 Rules:
+- Target 1600 to 2200 words if enough content is available.
+- Add enough explanation under each heading.
+- Explain subtopics properly.
+- Use clean solved example format: Given, Solution, Final Answer.
 - Do not create 2-mark, 5-mark, 10-mark sections.
 - Do not create a question bank.
 - Do not create MCQs.
-- Make it detailed.
-- Add enough explanation under each heading.
+- Do not write "Formula Below".
+- Do not write "Long Formulas".
 - Remove repetition.
-- At most include 2 important exam questions at the end.
 
 {COMMON_RULES}
 
@@ -661,8 +683,6 @@ Partial Notes:
 You are a college exam question paper expert.
 
 Combine the partial notes into one final IMPORTANT QUESTIONS document.
-
-This must look completely different from a summary.
 
 STRICT FINAL IMPORTANT QUESTIONS FORMAT:
 
@@ -678,6 +698,9 @@ Q2. Question?
 Answer: Short answer.
 
 Q3. Question?
+Answer: Short answer.
+
+Q4. Question?
 Answer: Short answer.
 
 ## 5-Mark Questions
@@ -742,7 +765,6 @@ VERY IMPORTANT:
 - Tables/formulas/diagrams can appear only inside answers where needed.
 - Every question must have an answer or answer outline.
 - Remove repeated questions.
-- Make it a real exam question bank.
 
 {COMMON_RULES}
 
@@ -793,7 +815,7 @@ STRICT FINAL FORMULA SHEET FORMAT:
 
 **Topic 1 • Topic 2 • Topic 3 • Laws • Tables • Diagrams**
 
-## CARD 1: Topic Name
+## CARD 1: Specific Topic Name
 
 **Diagram:** Short diagram instruction if needed.
 
@@ -807,16 +829,15 @@ $$
 - Point 1
 - Point 2
 - Point 3
+- Point 4
+
+**Truth Table / Law Table:** Add if useful.
 
 **Exam Use:** Usage.
 
 > **Note:** Short exam tip.
 
-## CARD 2: Topic Name
-
-Continue same format.
-
-## CARD 3: Topic Name
+## CARD 2: Specific Topic Name
 
 Continue same format.
 
@@ -827,8 +848,9 @@ Continue same format.
 | Law name | Short expression | Use |
 
 Rules:
-- Generate 6 to 8 cards if content allows.
+- Generate 8 to 10 compact cards if content allows.
 - Keep every card compact.
+- Prefer specific cards over generic cards.
 - Use tables for truth tables, Boolean laws, formula summaries, and comparisons.
 - Do not create summary paragraphs.
 - Do not create question bank.
@@ -866,7 +888,6 @@ Rules:
 - Do not write summary sections.
 - Do not add 2-mark, 5-mark, 10-mark sections.
 - Remove repeated questions.
-- Keep it useful for oral viva.
 
 {COMMON_RULES}
 
@@ -1094,13 +1115,18 @@ def remove_broken_pipe_lines(text):
     return "\n".join(cleaned)
 
 
-def clean_ai_output(text):
+def clean_ai_output(text, output_type):
     text = normalize_math_delimiters(text)
     text = repair_one_line_tables(text)
     text = protect_tables_from_long_equations(text)
     text = normalize_markdown_tables(text)
     text = remove_orphan_dollars(text)
     text = remove_broken_pipe_lines(text)
+
+    if output_type == "Summary":
+        text = re.sub(r"(?i)^#+\\s*formula below\\s*$", "", text, flags=re.MULTILINE)
+        text = re.sub(r"(?i)^#+\\s*long formulas\\s*$", "", text, flags=re.MULTILINE)
+
     text = re.sub(r"\n{4,}", "\n\n\n", text)
 
     return text.strip()
@@ -1114,13 +1140,13 @@ def process_pdf_chunks(chunks, output_type):
         prompt = create_prompt(chunks[0], output_type)
 
         if output_type == "Summary":
-            output = generate_with_groq(prompt, max_tokens=4200)
+            output = generate_with_groq(prompt, max_tokens=5000)
         elif output_type == "Formula Sheet":
-            output = generate_with_groq(prompt, max_tokens=3200)
+            output = generate_with_groq(prompt, max_tokens=3600)
         else:
-            output = generate_with_groq(prompt, max_tokens=2600)
+            output = generate_with_groq(prompt, max_tokens=2800)
 
-        return clean_ai_output(output)
+        return clean_ai_output(output, output_type)
 
     partial_outputs = []
 
@@ -1133,30 +1159,30 @@ def process_pdf_chunks(chunks, output_type):
         )
 
         if output_type == "Summary":
-            partial_output = generate_with_groq(chunk_prompt, max_tokens=1100)
+            partial_output = generate_with_groq(chunk_prompt, max_tokens=1300)
         elif output_type == "Formula Sheet":
-            partial_output = generate_with_groq(chunk_prompt, max_tokens=900)
+            partial_output = generate_with_groq(chunk_prompt, max_tokens=950)
         else:
-            partial_output = generate_with_groq(chunk_prompt, max_tokens=800)
+            partial_output = generate_with_groq(chunk_prompt, max_tokens=850)
 
-        partial_output = clean_ai_output(partial_output)
+        partial_output = clean_ai_output(partial_output, output_type)
         partial_outputs.append(f"## Part {index + 1}\n\n{partial_output}")
 
         time.sleep(0.5)
 
     combined_notes = "\n\n".join(partial_outputs)
-    combined_notes = combined_notes[:12000]
+    combined_notes = combined_notes[:14000]
 
     final_prompt = create_final_prompt(combined_notes, output_type)
 
     if output_type == "Summary":
-        final_output = generate_with_groq(final_prompt, max_tokens=4200)
+        final_output = generate_with_groq(final_prompt, max_tokens=5000)
     elif output_type == "Formula Sheet":
-        final_output = generate_with_groq(final_prompt, max_tokens=3400)
+        final_output = generate_with_groq(final_prompt, max_tokens=3600)
     else:
-        final_output = generate_with_groq(final_prompt, max_tokens=2800)
+        final_output = generate_with_groq(final_prompt, max_tokens=3000)
 
-    final_output = clean_ai_output(final_output)
+    final_output = clean_ai_output(final_output, output_type)
 
     return final_output
 
@@ -1164,7 +1190,7 @@ def process_pdf_chunks(chunks, output_type):
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
-        "message": "ExamEase AI backend is running with distinct output types and formula sheet layout"
+        "message": "ExamEase AI backend is running with improved summary and formula sheet quality"
     })
 
 

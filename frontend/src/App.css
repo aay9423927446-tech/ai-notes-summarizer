@@ -247,8 +247,8 @@ button {
 
 .markdown-output {
   color: #243447;
-  line-height: 1.85;
-  font-size: 17px;
+  line-height: 1.9;
+  font-size: 17.5px;
   text-align: left;
   overflow-wrap: break-word;
 }
@@ -275,7 +275,7 @@ button {
 .markdown-output h3 {
   font-size: 22px;
   color: #1e40af;
-  margin: 24px 0 12px;
+  margin: 26px 0 14px;
   padding: 10px 14px;
   background: #f8fafc;
   border-left: 5px solid #60a5fa;
@@ -289,17 +289,17 @@ button {
 }
 
 .markdown-output p {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .markdown-output ul,
 .markdown-output ol {
   margin-left: 30px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 .markdown-output li {
-  margin-bottom: 9px;
+  margin-bottom: 10px;
 }
 
 .markdown-output strong {
@@ -401,15 +401,16 @@ button {
   font-size: 1.22em;
 }
 
-/* Formula Sheet Landscape Card Layout */
+/* Formula Sheet Layout */
 
 .formula-sheet-mode {
-  padding: 28px 34px;
+  padding: 24px 28px;
   width: 100%;
 }
 
 .formula-sheet-mode .pdf-header {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  padding: 18px;
 }
 
 .formula-sheet-output {
@@ -418,11 +419,11 @@ button {
 
 .formula-sheet-title {
   text-align: center;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .formula-sheet-title h1 {
-  font-size: 38px;
+  font-size: 40px;
   color: #0f2a6b;
   margin-bottom: 6px;
   text-transform: uppercase;
@@ -437,80 +438,81 @@ button {
 
 .formula-card-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
   align-items: stretch;
 }
 
 .formula-card {
   border: 2px solid #cbd5e1;
   border-radius: 12px;
-  padding: 14px;
+  padding: 12px;
   background: #ffffff;
   page-break-inside: avoid;
-  min-height: 320px;
+  min-height: 230px;
 }
 
 .formula-card h2 {
-  font-size: 18px;
-  margin-bottom: 10px;
-  padding: 8px 10px;
+  font-size: 15.5px;
+  margin-bottom: 8px;
+  padding: 7px 9px;
   border-radius: 8px;
   color: white;
   background: #1e40af;
+  text-align: center;
 }
 
 .formula-card h3,
 .formula-card h4 {
-  font-size: 15px;
-  margin: 10px 0 6px;
+  font-size: 13px;
+  margin: 8px 0 5px;
   color: #111827;
 }
 
 .formula-card p {
-  font-size: 13px;
-  line-height: 1.5;
-  margin-bottom: 7px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  margin-bottom: 6px;
 }
 
 .formula-card ul,
 .formula-card ol {
-  margin-left: 18px;
-  margin-bottom: 8px;
+  margin-left: 16px;
+  margin-bottom: 7px;
 }
 
 .formula-card li {
-  font-size: 13px;
-  margin-bottom: 4px;
+  font-size: 11.5px;
+  margin-bottom: 3px;
 }
 
 .formula-card .katex {
-  font-size: 1em;
+  font-size: 0.95em;
 }
 
 .formula-card .katex-display {
-  margin: 10px auto;
-  padding: 8px;
+  margin: 8px auto;
+  padding: 6px;
 }
 
 .formula-card table {
-  font-size: 12px;
-  margin: 10px 0;
+  font-size: 10.5px;
+  margin: 8px 0;
 }
 
 .formula-card th,
 .formula-card td {
-  padding: 6px;
+  padding: 5px;
 }
 
 .formula-card blockquote {
-  margin: 10px 0;
-  padding: 8px 10px;
+  margin: 8px 0;
+  padding: 7px 9px;
   background: #fff7ed;
   border: 1.5px solid #f59e0b;
-  border-left: 6px solid #f59e0b;
+  border-left: 5px solid #f59e0b;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .card-color-1 {
@@ -561,9 +563,25 @@ button {
   background: #be185d;
 }
 
+.card-color-7 {
+  border-color: #ca8a04;
+}
+
+.card-color-7 h2 {
+  background: #a16207;
+}
+
+.card-color-8 {
+  border-color: #475569;
+}
+
+.card-color-8 h2 {
+  background: #334155;
+}
+
 .quick-formula-strip {
-  margin-top: 16px;
-  padding: 14px;
+  margin-top: 14px;
+  padding: 12px;
   border: 2px solid #d97706;
   border-radius: 12px;
   background: #fffaf0;
@@ -574,11 +592,12 @@ button {
   font-size: 20px;
   color: #92400e;
   margin-bottom: 10px;
+  text-align: center;
 }
 
 .quick-formula-strip table {
   width: 100%;
-  font-size: 13px;
+  font-size: 12px;
   border-collapse: collapse;
 }
 
@@ -589,7 +608,7 @@ button {
 
 .quick-formula-strip td,
 .quick-formula-strip th {
-  padding: 8px;
+  padding: 7px;
   border: 1px solid #f59e0b;
 }
 
