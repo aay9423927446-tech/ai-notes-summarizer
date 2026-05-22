@@ -71,6 +71,8 @@ function App() {
     cleaned = cleaned.replace(/\n\s*\|\s*\n/g, "\n");
     cleaned = cleaned.replace(/\n\s*\|\s*$/gm, "");
     cleaned = cleaned.replace(/^\s*\|\s*$/gm, "");
+    cleaned = cleaned.replace(/<\/?div[^>]*>/gi, "");
+    cleaned = cleaned.replace(/<\/?span[^>]*>/gi, "");
 
     return cleaned;
   };
@@ -153,6 +155,7 @@ function App() {
     const canvas = await html2canvas(element, {
       scale: isFormulaSheet ? 1.05 : 1.2,
       useCORS: true,
+      allowTaint: true,
       backgroundColor: "#ffffff",
       windowWidth: element.scrollWidth,
       windowHeight: element.scrollHeight,
@@ -236,66 +239,95 @@ function App() {
     }
   };
 
-  const buildInlineImageMarkdown = () => {
+  const InlineSourceImages = () => {
     if (outputType !== "Summary" || sourceImages.length === 0) {
-      return "";
+      return null;
     }
 
-    return sourceImages
-      .map((image, index) => {
-        return `
-<div class="inline-source-image-wrapper">
-
-![Source PDF visual ${index + 1}](${image.src})
-
-**Source PDF visual from page ${image.page}**
-
-</div>
-`;
-      })
-      .join("\n");
+    return (
+      <div className="inline-source-image-group">
+        {sourceImages.map((image, index) => (
+          <div className="inline-source-image-wrapper" key={index}>
+            <img
+              src={image.src}
+              alt={`Source PDF visual from page ${image.page}`}
+              className="inline-source-image"
+            />
+            <p>Source PDF visual from page {image.page}</p>
+          </div>
+        ))}
+      </div>
+    );
   };
 
-  const injectImagesInsideSummary = (text) => {
+  const splitSummaryForImages = (text) => {
     if (outputType !== "Summary" || sourceImages.length === 0) {
-      return text;
+      return {
+        before: text,
+        after: "",
+      };
     }
 
-    const imageMarkdown = buildInlineImageMarkdown();
-
-    const possibleMarkers = [
+    const markers = [
       "### 4. Detailed Explanation of Topics",
       "### 5. Important Formulas / Laws / Rules",
       "### 6. Important Tables",
     ];
 
-    for (const marker of possibleMarkers) {
-      if (text.includes(marker)) {
-        return text.replace(marker, `${imageMarkdown}\n\n${marker}`);
+    for (const marker of markers) {
+      const index = text.indexOf(marker);
+
+      if (index !== -1) {
+        return {
+          before: text.slice(0, index),
+          after: text.slice(index),
+        };
       }
     }
 
-    return `${text}\n\n${imageMarkdown}`;
+    return {
+      before: text,
+      after: "",
+    };
   };
 
   const renderNormalOutput = () => {
-    const finalText = injectImagesInsideSummary(result);
+    const parts = splitSummaryForImages(result);
 
     return (
       <div className="markdown-output">
         <ReactMarkdown
           remarkPlugins={markdownPlugins}
           rehypePlugins={rehypePlugins}
-          components={{
-            img: ({ node, ...props }) => (
-              <img className="inline-source-image" {...props} />
-            ),
-          }}
         >
-          {finalText}
+          {parts.before}
         </ReactMarkdown>
+
+        <InlineSourceImages />
+
+        {parts.after && (
+          <ReactMarkdown
+            remarkPlugins={markdownPlugins}
+            rehypePlugins={rehypePlugins}
+          >
+            {parts.after}
+          </ReactMarkdown>
+        )}
       </div>
     );
+  };
+
+  const isUsefulFormulaCard = (card) => {
+    const cleaned = card
+      .replace(/^## CARD.*$/gm, "")
+      .replace(/\*\*Diagram:\*\*/g, "")
+      .replace(/\*\*Formula \/ Rule:\*\*/g, "")
+      .replace(/\*\*Important Points:\*\*/g, "")
+      .replace(/\*\*Exam Use:\*\*/g, "")
+      .replace(/\*\*Note:\*\*/g, "")
+      .replace(/[-•*\s:]/g, "");
+
+    return cleaned.length > 70 && (card.includes("$") || card.includes("="));
   };
 
   const renderFormulaSheetOutput = () => {
@@ -308,7 +340,7 @@ function App() {
 
     const parts = mainFormulaText.split(/(?=^## CARD\s*\d*[:.-])/m);
     const intro = parts[0] || "";
-    const cards = parts.slice(1);
+    const cards = parts.slice(1).filter(isUsefulFormulaCard);
 
     return (
       <div className="formula-sheet-output">

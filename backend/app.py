@@ -27,7 +27,6 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 MODEL_NAME = "llama-3.1-8b-instant"
 
-# Faster + safer settings for Groq free tier
 MAX_CHUNK_CHARS = 3200
 MAX_CHUNKS = 4
 MAX_SOURCE_IMAGES = 3
@@ -52,9 +51,10 @@ TABLE RULES:
 - Every table row must start with | and end with |.
 - Always keep a blank line before and after a table.
 - Do not use display equations inside table cells.
-- Do not put long formulas inside table cells.
-- Inside table cells, use only short inline math.
-- If a formula is long, write "See formula below" in the table cell and put the full formula below the table.
+- Do not put long display formulas inside table cells.
+- Inside table cells, use only short inline math using $...$.
+- Do not write raw LaTeX like \\frac, \\left, \\right outside $...$.
+- If a formula is too long, write it below the table using $$...$$.
 - Do not leave incomplete rows like "| Momentum |".
 
 EQUATION RULES:
@@ -119,10 +119,6 @@ def create_chunks_from_pdf(file_path):
 
 
 def extract_source_images(file_path):
-    """
-    Extracts useful embedded images from the uploaded PDF.
-    These images are returned to frontend and inserted inside summary flow.
-    """
     images = []
 
     if fitz is None:
@@ -203,6 +199,8 @@ Create a DETAILED SUMMARY from the uploaded PDF content.
 
 IMPORTANT:
 - This must be proper study notes, not a question bank.
+- Do not include important exam questions in Summary.
+- We already have a separate Important Questions output type.
 - The output should be detailed and exam-oriented.
 - Target around 1200 to 1600 words if enough content exists.
 - Do not make short sections.
@@ -210,7 +208,8 @@ IMPORTANT:
 - Add examples wherever possible.
 - Add tables wherever useful.
 - Do not add irrelevant content outside the PDF topic.
-- Do not create a separate image section. Images will be inserted by the website inside the notes.
+- Do not create a separate source image section.
+- Do not write raw HTML.
 
 STRICT SUMMARY FORMAT:
 
@@ -244,7 +243,7 @@ Solution:
 Final Answer:
 
 ### 8. Exam Revision Box
-Put all notes, diagram points, exam questions, and revision points inside ONE single blockquote box.
+Put only notes, diagram points, and revision points inside ONE single blockquote box.
 
 Use exactly this style:
 
@@ -256,15 +255,12 @@ Use exactly this style:
 > - Diagram 1
 > - Diagram 2
 >
-> **Important Exam Questions:**
-> - Question 1
-> - Question 2
->
 > **Quick Revision Points:**
 > - Revision point 1
 > - Revision point 2
 
 DO NOT:
+- Do not include Important Exam Questions in Summary.
 - Do not create many separate note boxes.
 - Do not create many separate diagram boxes.
 - Do not create many separate revision boxes.
@@ -274,6 +270,7 @@ DO NOT:
 - Do not create a question bank.
 - Do not write headings like "Formula Below".
 - Do not write "Long Formulas".
+- Do not write raw HTML tags.
 
 {COMMON_RULES}
 
@@ -357,11 +354,7 @@ Q2. Question?
 Ans: Short oral answer.
 
 VERY IMPORTANT:
-- Do not write "Important Concepts" as a main section.
-- Do not write "Definitions" as a main section.
-- Do not write "Notes" as a main section.
-- Do not write "Important Tables" as a main section.
-- Do not write "Diagram to Draw" as a separate main section.
+- Do not write summary sections.
 - Every question must have an answer or answer outline.
 - Remove repeated questions.
 
@@ -416,32 +409,40 @@ PDF Content:
 
 def create_formula_sheet_prompt(text):
     return f"""
-Create ONLY a COMPACT 16:9 FORMULA SHEET from the PDF content.
+Create ONLY a COMPACT FORMULA SHEET from the PDF content.
 
 This should look like a professional cheat sheet, not normal notes.
 
 IMPORTANT:
 - Use dense card-based sections.
-- Each card should contain compact formulas, laws, rules, truth tables, diagram hints, and exam use.
+- Do not create empty cards.
+- Every card must have a proper card title.
+- Every card must contain at least 2 useful formulas, laws, rules, or key points.
+- If the PDF does not contain enough formula content for a card, do not create that card.
+- Do not leave empty labels like "Diagram:", "Formula / Rule:", "Important Points:" without content.
 - Do not write long paragraphs.
-- Do not create generic cards if specific cards are possible.
 - Use only formulas/laws/rules from the uploaded PDF.
 - Do not add unrelated formulas.
 - Keep every card balanced and compact.
 - Avoid very large cards.
-- If one topic is too large, split it into two smaller cards.
-- Keep cards short so that there are no long empty gaps in the final sheet.
+- Keep cards short so there are no long empty gaps.
 
-For Digital Electronics, prefer cards like:
-- Basic Logic Gates
-- NOT / Inverter Gate
-- AND / OR Gates
-- Universal Gates
-- Boolean Laws
-- De Morgan's Theorems
-- Truth Tables
-- Simplification Rules
-- SOP / POS Forms
+FORMULA FORMAT RULES:
+- Every mathematical formula must be inside $...$ or $$...$$.
+- In tables, formulas must be short and written as inline math like $I = V/R$.
+- Do not write raw LaTeX outside math delimiters.
+- Do not use \\left and \\right unless inside $...$.
+- Do not write things like V_D = V_T \\ln\\left(...) without $...$.
+
+For Electronics, prefer cards like:
+- Diode Equation
+- P-N Junction Biasing
+- Rectifier Formulas
+- Zener Diode
+- Op-Amp Basics
+- Inverting Op-Amp
+- Differential Amplifier
+- Important Formula Table
 
 STRICT FORMULA SHEET FORMAT:
 
@@ -451,16 +452,13 @@ STRICT FORMULA SHEET FORMAT:
 
 ## CARD 1: Specific Topic Name
 
-**Diagram:** Short diagram instruction if required.
-
 **Formula / Rule:**
-- Short formula or rule 1
-- Short formula or rule 2
+- $formula_1$
+- $formula_2$
 
 **Important Points:**
 - Point 1
 - Point 2
-- Point 3
 
 **Exam Use:** One short line.
 
@@ -474,13 +472,13 @@ Continue same compact card format.
 
 | Formula / Law | Expression | Use |
 |---|---|---|
-| Law name | Short expression | Use |
+| Law name | $short formula$ | Use |
 
 RULES:
-- Generate 6 to 8 compact cards if enough content is available.
-- Each card must be compact.
-- Use tables for truth tables, Boolean laws, comparisons, or properties.
+- Generate 5 to 8 compact cards if enough content is available.
+- Each card must contain real content.
 - Do not create huge law cards.
+- Do not create empty cards.
 - Do not create Summary sections.
 - Do not create Important Questions sections.
 - Do not create MCQs.
@@ -546,7 +544,9 @@ Return:
 - Quick revision points
 
 Do NOT create a question bank.
+Do NOT include important exam questions.
 Do NOT create separate image section.
+Do NOT write raw HTML.
 Keep it detailed but concise.
 
 {COMMON_RULES}
@@ -631,20 +631,23 @@ Return compact cards:
 ## CARD: Specific Topic Name
 
 **Formula / Rule:**
-- Short formula or rule 1
-- Short formula or rule 2
+- $formula or rule 1$
+- $formula or rule 2$
 
 **Important Points:**
 - Point 1
 - Point 2
-- Point 3
 
 **Exam Use:** One short line.
 
-Do not write long notes.
-Do not create question answers.
-Prefer specific cards over generic cards.
-Avoid huge cards.
+Rules:
+- Do not create empty cards.
+- Do not create cards with only labels.
+- Do not write long notes.
+- Do not create question answers.
+- Prefer specific cards over generic cards.
+- Avoid huge cards.
+- Every formula must be inside $...$ or $$...$$.
 
 {COMMON_RULES}
 
@@ -701,7 +704,8 @@ Rules:
 - Add enough explanation under each heading.
 - Explain subtopics properly.
 - Use clean solved example format: Given, Solution, Final Answer.
-- For section 8, put all notes, diagrams, exam questions, and revision points inside ONE single blockquote box.
+- For section 8, put only notes, diagrams, and revision points inside ONE single blockquote box.
+- Do not include Important Exam Questions in Summary.
 - Do not create many separate yellow/orange boxes.
 - Do not create separate source image section.
 - Do not create 2-mark, 5-mark, 10-mark sections.
@@ -709,6 +713,7 @@ Rules:
 - Do not create MCQs.
 - Do not write "Formula Below".
 - Do not write "Long Formulas".
+- Do not write raw HTML.
 - Remove repetition.
 
 Use this exact style for Section 8:
@@ -722,10 +727,6 @@ Use this exact style for Section 8:
 > **Diagrams to Practice:**
 > - Diagram 1
 > - Diagram 2
->
-> **Important Exam Questions:**
-> - Question 1
-> - Question 2
 >
 > **Quick Revision Points:**
 > - Revision point 1
@@ -851,16 +852,13 @@ STRICT FINAL FORMULA SHEET FORMAT:
 
 ## CARD 1: Specific Topic Name
 
-**Diagram:** Short diagram instruction if needed.
-
 **Formula / Rule:**
-- Short formula or rule 1
-- Short formula or rule 2
+- $formula or rule 1$
+- $formula or rule 2$
 
 **Important Points:**
 - Point 1
 - Point 2
-- Point 3
 
 **Exam Use:** One short line.
 
@@ -874,15 +872,20 @@ Continue same compact format.
 
 | Formula / Law | Expression | Use |
 |---|---|---|
-| Law name | Short expression | Use |
+| Law name | $short formula$ | Use |
 
 Rules:
-- Generate 6 to 8 compact cards if content allows.
+- Generate 5 to 8 compact cards if content allows.
 - Keep every card compact.
 - Prefer specific cards over generic cards.
 - Split large topics into smaller cards.
 - Do not create very large cards.
-- Use tables for truth tables, Boolean laws, formula summaries, and comparisons.
+- Do not create empty cards.
+- Do not leave labels empty.
+- Every formula must be inside $...$ or $$...$$.
+- In tables, expressions must be short inline formulas like $I = V/R$.
+- Do not write raw LaTeX outside math delimiters.
+- Use tables for formula summaries and comparisons.
 - Do not create summary paragraphs.
 - Do not create question bank.
 - Do not create MCQs.
@@ -940,9 +943,11 @@ You are a helpful exam preparation assistant for engineering students.
 Strict formatting rules:
 - Output must follow the selected output type exactly.
 - Summary must look like detailed summary notes.
+- Summary must NOT include important exam questions.
 - Important Questions must look like a real question bank.
 - MCQs must contain only MCQs.
 - Formula Sheet must look like a compact cheat-sheet with cards.
+- Formula Sheet must not contain empty cards.
 - Viva Questions must contain only viva Q&A.
 - Output must be valid Markdown.
 - Use Markdown tables correctly.
@@ -954,6 +959,7 @@ Strict formatting rules:
 - Never output lone $ symbols.
 - Never use \\[ \\] or \\( \\).
 - Never write raw broken LaTeX.
+- Never write raw HTML tags.
 """
                 },
                 {
@@ -988,6 +994,24 @@ def normalize_math_delimiters(text):
     text = text.replace("\\]", "$$")
     text = text.replace("\\(", "$")
     text = text.replace("\\)", "$")
+    return text
+
+
+def wrap_latex_like_text(text):
+    """
+    Wraps common raw LaTeX fragments in inline math if the model forgot $...$.
+    This mainly improves formula-sheet tables.
+    """
+    patterns = [
+        r"(?<!\$)([A-Za-z]_[A-Za-z0-9]+\s*=\s*[^|\n]+\\frac[^|\n]+)(?!\$)",
+        r"(?<!\$)([A-Za-z]\s*=\s*[^|\n]+\\frac[^|\n]+)(?!\$)",
+        r"(?<!\$)([A-Za-z]_[A-Za-z0-9]+\s*=\s*[^|\n]+\\ln[^|\n]+)(?!\$)",
+        r"(?<!\$)([A-Za-z]\s*=\s*[^|\n]+\\ln[^|\n]+)(?!\$)",
+    ]
+
+    for pattern in patterns:
+        text = re.sub(pattern, r"$\1$", text)
+
     return text
 
 
@@ -1048,16 +1072,16 @@ def protect_tables_from_long_equations(text):
 
             has_long_formula = any(
                 token in line
-                for token in ["\\frac", "\\partial", "\\int", "\\sum", "\\nabla"]
+                for token in ["\\frac", "\\partial", "\\int", "\\sum", "\\nabla", "\\left", "\\right"]
             )
 
-            if has_long_formula and len(line) > 120:
+            if has_long_formula and len(line) > 150:
                 formulas = re.findall(r"\$([^$]+)\$", line)
 
                 for formula in formulas:
                     if any(
                         token in formula
-                        for token in ["\\frac", "\\partial", "\\int", "\\sum", "\\nabla"]
+                        for token in ["\\frac", "\\partial", "\\int", "\\sum", "\\nabla", "\\left", "\\right"]
                     ):
                         delayed_formulas.append(formula)
 
@@ -1136,17 +1160,75 @@ def remove_broken_pipe_lines(text):
     return "\n".join(cleaned)
 
 
+def remove_summary_questions(text):
+    if "### 8. Exam Revision Box" not in text:
+        return text
+
+    text = re.sub(
+        r">\s*\*\*Important Exam Questions:\*\*[\s\S]*?(?=>\s*\*\*Quick Revision Points:\*\*)",
+        "",
+        text
+    )
+
+    text = re.sub(
+        r"\*\*Important Exam Questions:\*\*[\s\S]*?(?=\*\*Quick Revision Points:\*\*)",
+        "",
+        text
+    )
+
+    return text
+
+
+def remove_empty_formula_cards(text):
+    parts = re.split(r"(?=^## CARD\s*\d*[:.-])", text, flags=re.MULTILINE)
+
+    if len(parts) <= 1:
+        return text
+
+    intro = parts[0]
+    kept_cards = []
+
+    for card in parts[1:]:
+        card_lower = card.lower()
+
+        useful_text = card
+        useful_text = re.sub(r"## CARD\s*\d*[:.-].*", "", useful_text, flags=re.IGNORECASE)
+        useful_text = useful_text.replace("**Diagram:**", "")
+        useful_text = useful_text.replace("**Formula / Rule:**", "")
+        useful_text = useful_text.replace("**Important Points:**", "")
+        useful_text = useful_text.replace("**Exam Use:**", "")
+        useful_text = useful_text.replace("**Note:**", "")
+        useful_text = re.sub(r"[-•*\s:]+", " ", useful_text).strip()
+
+        has_formula = "$" in card or "=" in card or "law" in card_lower or "rule" in card_lower
+        has_enough_text = len(useful_text) > 80
+
+        if has_formula and has_enough_text:
+            kept_cards.append(card)
+
+    return intro + "".join(kept_cards)
+
+
 def clean_ai_output(text, output_type):
     text = normalize_math_delimiters(text)
+    text = wrap_latex_like_text(text)
     text = repair_one_line_tables(text)
     text = protect_tables_from_long_equations(text)
     text = normalize_markdown_tables(text)
     text = remove_orphan_dollars(text)
     text = remove_broken_pipe_lines(text)
 
+    # Remove any raw HTML accidentally generated or inserted
+    text = re.sub(r"<\/?div[^>]*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<\/?span[^>]*>", "", text, flags=re.IGNORECASE)
+
     if output_type == "Summary":
         text = re.sub(r"(?i)^#+\s*formula below\s*$", "", text, flags=re.MULTILINE)
         text = re.sub(r"(?i)^#+\s*long formulas\s*$", "", text, flags=re.MULTILINE)
+        text = remove_summary_questions(text)
+
+    if output_type == "Formula Sheet":
+        text = remove_empty_formula_cards(text)
 
     text = re.sub(r"\n{4,}", "\n\n\n", text)
 
@@ -1211,7 +1293,7 @@ def process_pdf_chunks(chunks, output_type):
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
-        "message": "ExamEase AI backend is running with inline image support and compact formula settings"
+        "message": "ExamEase AI backend is running with fixed summary and formula formatting"
     })
 
 

@@ -386,10 +386,17 @@ button {
   font-size: 1.22em;
 }
 
-/* Inline images inside summary */
+/* Inline source images inside summary */
+
+.inline-source-image-group {
+  margin: 24px 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  page-break-inside: avoid;
+}
 
 .inline-source-image-wrapper {
-  margin: 24px 0;
   padding: 14px;
   border: 1px solid #cbd5e1;
   border-radius: 14px;
@@ -400,15 +407,21 @@ button {
 
 .inline-source-image {
   display: block;
-  max-width: 85%;
-  max-height: 340px;
+  max-width: 100%;
+  max-height: 320px;
   object-fit: contain;
   margin: 0 auto 10px auto;
   border-radius: 10px;
   background: white;
 }
 
-/* Formula Sheet - masonry layout removes long gaps */
+.inline-source-image-wrapper p {
+  color: #475569;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Formula Sheet */
 
 .formula-sheet-mode {
   padding: 22px 24px;
@@ -654,8 +667,8 @@ button {
     font-size: 16px;
   }
 
-  .inline-source-image {
-    max-width: 100%;
+  .inline-source-image-group {
+    grid-template-columns: 1fr;
   }
 
   .formula-card-masonry {
