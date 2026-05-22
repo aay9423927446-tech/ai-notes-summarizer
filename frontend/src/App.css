@@ -386,59 +386,29 @@ button {
   font-size: 1.22em;
 }
 
-/* Source images from uploaded PDF */
+/* Inline images inside summary */
 
-.source-images-section {
-  margin-top: 34px;
-  padding-top: 10px;
-}
-
-.source-images-section h2 {
-  font-size: 26px;
-  color: #1e3a8a;
-  margin: 28px 0 12px;
-  padding: 12px 16px;
-  background: linear-gradient(90deg, #dbeafe, #ffffff);
-  border-left: 7px solid #1d4ed8;
-  border-radius: 8px;
-}
-
-.source-image-note {
-  color: #475569;
-  font-size: 15px;
-  margin-bottom: 18px;
-}
-
-.source-image-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
-}
-
-.source-image-card {
+.inline-source-image-wrapper {
+  margin: 24px 0;
+  padding: 14px;
   border: 1px solid #cbd5e1;
   border-radius: 14px;
-  padding: 14px;
   background: #f8fafc;
   text-align: center;
   page-break-inside: avoid;
 }
 
-.source-image-card img {
-  max-width: 100%;
-  max-height: 360px;
+.inline-source-image {
+  display: block;
+  max-width: 85%;
+  max-height: 340px;
   object-fit: contain;
+  margin: 0 auto 10px auto;
   border-radius: 10px;
   background: white;
 }
 
-.source-image-card p {
-  margin-top: 10px;
-  color: #475569;
-  font-size: 14px;
-}
-
-/* Formula Sheet */
+/* Formula Sheet - masonry layout removes long gaps */
 
 .formula-sheet-mode {
   padding: 22px 24px;
@@ -474,20 +444,22 @@ button {
   color: #4c1d95;
 }
 
-.formula-card-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  align-items: stretch;
+.formula-card-masonry {
+  column-count: 3;
+  column-gap: 14px;
 }
 
 .formula-card {
+  display: inline-block;
+  width: 100%;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
   border: 2px solid #cbd5e1;
   border-radius: 12px;
   padding: 12px;
   background: #ffffff;
-  page-break-inside: avoid;
-  min-height: 255px;
+  margin: 0 0 14px 0;
   overflow: hidden;
 }
 
@@ -682,12 +654,12 @@ button {
     font-size: 16px;
   }
 
-  .source-image-grid {
-    grid-template-columns: 1fr;
+  .inline-source-image {
+    max-width: 100%;
   }
 
-  .formula-card-grid {
-    grid-template-columns: 1fr;
+  .formula-card-masonry {
+    column-count: 1;
   }
 
   .formula-sheet-mode {

@@ -27,9 +27,10 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 MODEL_NAME = "llama-3.1-8b-instant"
 
-MAX_CHUNK_CHARS = 3500
-MAX_CHUNKS = 6
-MAX_SOURCE_IMAGES = 4
+# Faster + safer settings for Groq free tier
+MAX_CHUNK_CHARS = 3200
+MAX_CHUNKS = 4
+MAX_SOURCE_IMAGES = 3
 
 
 COMMON_RULES = """
@@ -119,8 +120,8 @@ def create_chunks_from_pdf(file_path):
 
 def extract_source_images(file_path):
     """
-    Extracts real embedded images from the uploaded PDF.
-    If the PDF has no embedded images, it returns an empty list.
+    Extracts useful embedded images from the uploaded PDF.
+    These images are returned to frontend and inserted inside summary flow.
     """
     images = []
 
@@ -137,7 +138,7 @@ def extract_source_images(file_path):
             page = doc[page_index]
             page_images = page.get_images(full=True)
 
-            for img_index, img in enumerate(page_images):
+            for img in page_images:
                 if len(images) >= MAX_SOURCE_IMAGES:
                     break
 
@@ -151,8 +152,8 @@ def extract_source_images(file_path):
 
                     image_bytes = pix.tobytes("png")
 
-                    # Skip very tiny icons/logos
-                    if len(image_bytes) < 8000:
+                    # Skip tiny icons/logos
+                    if len(image_bytes) < 10000:
                         continue
 
                     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
@@ -198,17 +199,18 @@ def create_summary_prompt(text):
     return f"""
 You are an exam preparation assistant.
 
-Create a LONG DETAILED SUMMARY from the uploaded PDF content.
+Create a DETAILED SUMMARY from the uploaded PDF content.
 
 IMPORTANT:
 - This must be proper study notes, not a question bank.
-- The output must be long enough to become minimum 5 PDF pages.
-- Target 1600 to 2200 words if enough content exists.
+- The output should be detailed and exam-oriented.
+- Target around 1200 to 1600 words if enough content exists.
 - Do not make short sections.
 - Explain every topic clearly.
 - Add examples wherever possible.
 - Add tables wherever useful.
 - Do not add irrelevant content outside the PDF topic.
+- Do not create a separate image section. Images will be inserted by the website inside the notes.
 
 STRICT SUMMARY FORMAT:
 
@@ -217,31 +219,26 @@ STRICT SUMMARY FORMAT:
 ## UNIT / TOPIC NAME
 
 ### 1. Introduction
-Write a detailed introduction in 8 to 12 lines.
+Write a detailed introduction.
 
 ### 2. Important Concepts
-Explain each important concept in detail.
-Use bullet points, but each point must have explanation.
+Explain each important concept clearly.
 
 ### 3. Definitions
 Give important definitions clearly.
-Each definition should be exam-ready.
 
 ### 4. Detailed Explanation of Topics
-Explain every major subtopic one by one.
-Add subheadings.
-Give detailed explanation, not just one-line points.
+Explain major subtopics one by one.
 
 ### 5. Important Formulas / Laws / Rules
 Write all formulas, laws, rules, expressions, or theorems present in the PDF.
-Use display math for important formulas.
 
 ### 6. Important Tables
 Use tables for comparisons, truth tables, laws, gates, properties, or classifications.
 
 ### 7. Solved / Explanation Examples
 Add solved examples if present.
-Use this format only:
+Use this format:
 Given:
 Solution:
 Final Answer:
@@ -254,7 +251,6 @@ Use exactly this style:
 > **Important Notes:**
 > - Point 1
 > - Point 2
-> - Point 3
 >
 > **Diagrams to Practice:**
 > - Diagram 1
@@ -267,18 +263,17 @@ Use exactly this style:
 > **Quick Revision Points:**
 > - Revision point 1
 > - Revision point 2
-> - Revision point 3
 
 DO NOT:
 - Do not create many separate note boxes.
 - Do not create many separate diagram boxes.
 - Do not create many separate revision boxes.
+- Do not create a separate source image section.
 - Do not create 2-mark, 5-mark, 10-mark sections.
 - Do not create MCQs.
 - Do not create a question bank.
 - Do not write headings like "Formula Below".
 - Do not write "Long Formulas".
-- Do not keep the summary under 5 pages.
 
 {COMMON_RULES}
 
@@ -312,9 +307,6 @@ Answer: Give a short 2-3 line answer.
 Q3. Write the question.
 Answer: Give a short 2-3 line answer.
 
-Q4. Write the question.
-Answer: Give a short 2-3 line answer.
-
 ## 5-Mark Questions
 
 Q1. Write the question.
@@ -322,7 +314,6 @@ Answer points:
 - Point 1
 - Point 2
 - Point 3
-- Point 4
 - Add formula/table if needed.
 
 Q2. Write the question.
@@ -330,7 +321,6 @@ Answer points:
 - Point 1
 - Point 2
 - Point 3
-- Point 4
 
 ## 10-Mark Questions
 
@@ -358,12 +348,6 @@ Solution:
 - Step 2
 - Final answer
 
-Q2. Write the question.
-Solution:
-- Step 1
-- Step 2
-- Final answer
-
 ## Viva Questions
 
 Q1. Question?
@@ -372,19 +356,14 @@ Ans: Short oral answer.
 Q2. Question?
 Ans: Short oral answer.
 
-Q3. Question?
-Ans: Short oral answer.
-
 VERY IMPORTANT:
 - Do not write "Important Concepts" as a main section.
 - Do not write "Definitions" as a main section.
 - Do not write "Notes" as a main section.
 - Do not write "Important Tables" as a main section.
 - Do not write "Diagram to Draw" as a separate main section.
-- Tables, formulas, and diagrams can appear only inside answers where needed.
 - Every question must have an answer or answer outline.
 - Remove repeated questions.
-- This should look completely different from Summary.
 
 {COMMON_RULES}
 
@@ -422,7 +401,7 @@ Correct Answer: A
 Explanation: Short explanation.
 
 Rules:
-- Create 20 MCQs.
+- Create 20 MCQs if enough content exists.
 - Do not write summary.
 - Do not write theory notes.
 - Do not create 2-mark, 5-mark, or 10-mark sections.
@@ -451,6 +430,7 @@ IMPORTANT:
 - Keep every card balanced and compact.
 - Avoid very large cards.
 - If one topic is too large, split it into two smaller cards.
+- Keep cards short so that there are no long empty gaps in the final sheet.
 
 For Digital Electronics, prefer cards like:
 - Basic Logic Gates
@@ -462,7 +442,6 @@ For Digital Electronics, prefer cards like:
 - Truth Tables
 - Simplification Rules
 - SOP / POS Forms
-- Important Exam Formula Table
 
 STRICT FORMULA SHEET FORMAT:
 
@@ -498,7 +477,7 @@ Continue same compact card format.
 | Law name | Short expression | Use |
 
 RULES:
-- Generate 8 to 10 compact cards if enough content is available.
+- Generate 6 to 8 compact cards if enough content is available.
 - Each card must be compact.
 - Use tables for truth tables, Boolean laws, comparisons, or properties.
 - Do not create huge law cards.
@@ -506,7 +485,6 @@ RULES:
 - Do not create Important Questions sections.
 - Do not create MCQs.
 - Do not create Viva Questions.
-- This output will be shown in landscape PDF.
 
 {COMMON_RULES}
 
@@ -541,7 +519,6 @@ Rules:
 - Do not write summary sections.
 - Do not create 2-mark, 5-mark, 10-mark sections.
 - Do not make tables unless absolutely needed.
-- Focus on quick viva revision.
 
 {COMMON_RULES}
 
@@ -569,7 +546,8 @@ Return:
 - Quick revision points
 
 Do NOT create a question bank.
-Make this detailed enough for long summary notes.
+Do NOT create separate image section.
+Keep it detailed but concise.
 
 {COMMON_RULES}
 
@@ -661,8 +639,6 @@ Return compact cards:
 - Point 2
 - Point 3
 
-**Truth Table / Law Table:** Add only if useful.
-
 **Exam Use:** One short line.
 
 Do not write long notes.
@@ -703,9 +679,7 @@ def create_final_prompt(combined_notes, output_type):
         return f"""
 You are an exam preparation assistant.
 
-Combine the partial notes into one final LONG DETAILED SUMMARY.
-
-The final summary must be detailed enough to become minimum 5 PDF pages.
+Combine the partial notes into one final DETAILED SUMMARY.
 
 STRICT FINAL SUMMARY FORMAT:
 
@@ -723,12 +697,13 @@ STRICT FINAL SUMMARY FORMAT:
 ### 8. Exam Revision Box
 
 Rules:
-- Target 1600 to 2200 words if enough content is available.
+- Target around 1200 to 1600 words if enough content is available.
 - Add enough explanation under each heading.
 - Explain subtopics properly.
 - Use clean solved example format: Given, Solution, Final Answer.
 - For section 8, put all notes, diagrams, exam questions, and revision points inside ONE single blockquote box.
 - Do not create many separate yellow/orange boxes.
+- Do not create separate source image section.
 - Do not create 2-mark, 5-mark, 10-mark sections.
 - Do not create a question bank.
 - Do not create MCQs.
@@ -743,7 +718,6 @@ Use this exact style for Section 8:
 > **Important Notes:**
 > - Point 1
 > - Point 2
-> - Point 3
 >
 > **Diagrams to Practice:**
 > - Diagram 1
@@ -756,7 +730,6 @@ Use this exact style for Section 8:
 > **Quick Revision Points:**
 > - Revision point 1
 > - Revision point 2
-> - Revision point 3
 
 {COMMON_RULES}
 
@@ -786,9 +759,6 @@ Answer: Short answer.
 Q3. Question?
 Answer: Short answer.
 
-Q4. Question?
-Answer: Short answer.
-
 ## 5-Mark Questions
 Q1. Question?
 Answer points:
@@ -813,23 +783,8 @@ Answer outline:
 - Diagram to draw if required
 - Conclusion
 
-Q2. Question?
-Answer outline:
-- Introduction
-- Explanation
-- Important laws/formulas
-- Table if needed
-- Diagram to draw if required
-- Conclusion
-
 ## Numericals / Simplification / Truth Table Questions
 Q1. Question?
-Solution:
-- Step 1
-- Step 2
-- Final answer
-
-Q2. Question?
 Solution:
 - Step 1
 - Step 2
@@ -843,12 +798,7 @@ Q2. Question?
 Ans: Short oral answer.
 
 VERY IMPORTANT:
-- Do not write "Important Concepts" section.
-- Do not write "Definitions" section.
-- Do not write "Notes" section.
-- Do not write "Important Tables" section.
-- Do not write "Diagram to Draw" as a separate main section.
-- Tables/formulas/diagrams can appear only inside answers where needed.
+- Do not write summary sections.
 - Every question must have an answer or answer outline.
 - Remove repeated questions.
 
@@ -891,9 +841,7 @@ Partial MCQs:
 
     if output_type == "Formula Sheet":
         return f"""
-Combine the partial formula material into one final COMPACT 16:9 FORMULA SHEET.
-
-The output must look like a clean cheat sheet with multiple compact cards.
+Combine the partial formula material into one final COMPACT FORMULA SHEET.
 
 STRICT FINAL FORMULA SHEET FORMAT:
 
@@ -914,8 +862,6 @@ STRICT FINAL FORMULA SHEET FORMAT:
 - Point 2
 - Point 3
 
-**Truth Table / Law Table:** Add only if useful.
-
 **Exam Use:** One short line.
 
 > **Note:** One short exam tip.
@@ -931,7 +877,7 @@ Continue same compact format.
 | Law name | Short expression | Use |
 
 Rules:
-- Generate 8 to 10 compact cards if content allows.
+- Generate 6 to 8 compact cards if content allows.
 - Keep every card compact.
 - Prefer specific cards over generic cards.
 - Split large topics into smaller cards.
@@ -941,7 +887,6 @@ Rules:
 - Do not create question bank.
 - Do not create MCQs.
 - Do not create viva questions.
-- The content will be displayed in landscape PDF.
 
 {COMMON_RULES}
 
@@ -971,7 +916,6 @@ Ans: Short answer.
 Rules:
 - Answers must be short.
 - Do not write summary sections.
-- Do not add 2-mark, 5-mark, 10-mark sections.
 - Remove repeated questions.
 
 {COMMON_RULES}
@@ -983,15 +927,14 @@ Partial Viva Material:
     return create_final_prompt(combined_notes, "Summary")
 
 
-def generate_with_groq(prompt, max_tokens=1200, retries=1):
-    for attempt in range(retries + 1):
-        try:
-            chat_completion = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """
+def generate_with_groq(prompt, max_tokens=1200):
+    try:
+        chat_completion = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": """
 You are a helpful exam preparation assistant for engineering students.
 
 Strict formatting rules:
@@ -1012,27 +955,20 @@ Strict formatting rules:
 - Never use \\[ \\] or \\( \\).
 - Never write raw broken LaTeX.
 """
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.1,
-                max_tokens=max_tokens
-            )
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.1,
+            max_tokens=max_tokens
+        )
 
-            return chat_completion.choices[0].message.content
+        return chat_completion.choices[0].message.content
 
-        except Exception as e:
-            error_message = str(e)
-
-            if "rate_limit_exceeded" in error_message or "tokens per minute" in error_message:
-                if attempt < retries:
-                    time.sleep(65)
-                    continue
-
-            raise e
+    except Exception as e:
+        raise e
 
 
 def remove_orphan_dollars(text):
@@ -1225,11 +1161,11 @@ def process_pdf_chunks(chunks, output_type):
         prompt = create_prompt(chunks[0], output_type)
 
         if output_type == "Summary":
-            output = generate_with_groq(prompt, max_tokens=5000)
+            output = generate_with_groq(prompt, max_tokens=3500)
         elif output_type == "Formula Sheet":
-            output = generate_with_groq(prompt, max_tokens=3600)
+            output = generate_with_groq(prompt, max_tokens=2600)
         else:
-            output = generate_with_groq(prompt, max_tokens=2800)
+            output = generate_with_groq(prompt, max_tokens=2200)
 
         return clean_ai_output(output, output_type)
 
@@ -1244,11 +1180,11 @@ def process_pdf_chunks(chunks, output_type):
         )
 
         if output_type == "Summary":
-            partial_output = generate_with_groq(chunk_prompt, max_tokens=1300)
+            partial_output = generate_with_groq(chunk_prompt, max_tokens=900)
         elif output_type == "Formula Sheet":
-            partial_output = generate_with_groq(chunk_prompt, max_tokens=950)
+            partial_output = generate_with_groq(chunk_prompt, max_tokens=750)
         else:
-            partial_output = generate_with_groq(chunk_prompt, max_tokens=850)
+            partial_output = generate_with_groq(chunk_prompt, max_tokens=700)
 
         partial_output = clean_ai_output(partial_output, output_type)
         partial_outputs.append(f"## Part {index + 1}\n\n{partial_output}")
@@ -1256,16 +1192,16 @@ def process_pdf_chunks(chunks, output_type):
         time.sleep(0.5)
 
     combined_notes = "\n\n".join(partial_outputs)
-    combined_notes = combined_notes[:14000]
+    combined_notes = combined_notes[:10000]
 
     final_prompt = create_final_prompt(combined_notes, output_type)
 
     if output_type == "Summary":
-        final_output = generate_with_groq(final_prompt, max_tokens=5000)
+        final_output = generate_with_groq(final_prompt, max_tokens=3500)
     elif output_type == "Formula Sheet":
-        final_output = generate_with_groq(final_prompt, max_tokens=3600)
+        final_output = generate_with_groq(final_prompt, max_tokens=2600)
     else:
-        final_output = generate_with_groq(final_prompt, max_tokens=3000)
+        final_output = generate_with_groq(final_prompt, max_tokens=2200)
 
     final_output = clean_ai_output(final_output, output_type)
 
@@ -1275,7 +1211,7 @@ def process_pdf_chunks(chunks, output_type):
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
-        "message": "ExamEase AI backend is running with source image extraction and improved layouts"
+        "message": "ExamEase AI backend is running with inline image support and compact formula settings"
     })
 
 
@@ -1298,6 +1234,7 @@ def upload_pdf():
         ai_output = process_pdf_chunks(chunks, output_type)
 
         source_images = []
+
         if output_type == "Summary":
             source_images = extract_source_images(file_path)
 
@@ -1312,7 +1249,7 @@ def upload_pdf():
 
         if "rate_limit_exceeded" in error_message or "tokens per minute" in error_message:
             return jsonify({
-                "error": "The PDF is large or the free AI token limit was reached. Please wait 1 minute and try again."
+                "error": "The AI free token limit was reached. Please wait 30-60 seconds and try again, or upload a smaller/unit-wise PDF."
             }), 500
 
         if "Request too large" in error_message:

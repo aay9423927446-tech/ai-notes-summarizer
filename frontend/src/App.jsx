@@ -236,47 +236,73 @@ function App() {
     }
   };
 
-  const renderSourceImages = () => {
+  const buildInlineImageMarkdown = () => {
     if (outputType !== "Summary" || sourceImages.length === 0) {
-      return null;
+      return "";
     }
 
-    return (
-      <div className="source-images-section">
-        <h2>Source Diagrams / Images</h2>
-        <p className="source-image-note">
-          Images extracted from your uploaded PDF for better visual revision.
-        </p>
+    return sourceImages
+      .map((image, index) => {
+        return `
+<div class="inline-source-image-wrapper">
 
-        <div className="source-image-grid">
-          {sourceImages.map((image, index) => (
-            <div className="source-image-card" key={index}>
-              <img src={image.src} alt={`Source visual from page ${image.page}`} />
-              <p>Source PDF page {image.page}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+![Source PDF visual ${index + 1}](${image.src})
+
+**Source PDF visual from page ${image.page}**
+
+</div>
+`;
+      })
+      .join("\n");
+  };
+
+  const injectImagesInsideSummary = (text) => {
+    if (outputType !== "Summary" || sourceImages.length === 0) {
+      return text;
+    }
+
+    const imageMarkdown = buildInlineImageMarkdown();
+
+    const possibleMarkers = [
+      "### 4. Detailed Explanation of Topics",
+      "### 5. Important Formulas / Laws / Rules",
+      "### 6. Important Tables",
+    ];
+
+    for (const marker of possibleMarkers) {
+      if (text.includes(marker)) {
+        return text.replace(marker, `${imageMarkdown}\n\n${marker}`);
+      }
+    }
+
+    return `${text}\n\n${imageMarkdown}`;
   };
 
   const renderNormalOutput = () => {
+    const finalText = injectImagesInsideSummary(result);
+
     return (
       <div className="markdown-output">
         <ReactMarkdown
           remarkPlugins={markdownPlugins}
           rehypePlugins={rehypePlugins}
+          components={{
+            img: ({ node, ...props }) => (
+              <img className="inline-source-image" {...props} />
+            ),
+          }}
         >
-          {result}
+          {finalText}
         </ReactMarkdown>
-
-        {renderSourceImages()}
       </div>
     );
   };
 
   const renderFormulaSheetOutput = () => {
-    const quickSplit = result.split(/(?=^## QUICK FORMULAS|^## QUICK LAWS|^## QUICK FORMULAS \/ LAWS)/m);
+    const quickSplit = result.split(
+      /(?=^## QUICK FORMULAS|^## QUICK LAWS|^## QUICK FORMULAS \/ LAWS)/m
+    );
+
     const mainFormulaText = quickSplit[0] || "";
     const quickSection = quickSplit.slice(1).join("\n\n");
 
@@ -295,7 +321,7 @@ function App() {
           </ReactMarkdown>
         </div>
 
-        <div className="formula-card-grid">
+        <div className="formula-card-masonry">
           {cards.map((card, index) => (
             <div
               className={`formula-card card-color-${(index % 6) + 1}`}
@@ -394,7 +420,11 @@ function App() {
         </div>
       </div>
 
-      <div className={`result-box ${outputType === "Formula Sheet" ? "formula-result-box" : ""}`}>
+      <div
+        className={`result-box ${
+          outputType === "Formula Sheet" ? "formula-result-box" : ""
+        }`}
+      >
         <div
           className={`pdf-content ${
             outputType === "Formula Sheet" ? "formula-sheet-mode" : ""
