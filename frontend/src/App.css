@@ -214,6 +214,11 @@ button {
   border: 1px solid #e2e8f0;
 }
 
+.formula-result-box {
+  max-width: 1400px;
+  overflow-x: auto;
+}
+
 .pdf-content {
   background: #ffffff;
   color: #1e293b;
@@ -307,35 +312,24 @@ button {
   font-weight: 800;
 }
 
-.markdown-output hr {
-  border: none;
-  height: 2px;
-  background: #dbeafe;
-  margin: 30px 0;
-}
-
-.markdown-output code {
-  background: #eff6ff;
-  color: #1d4ed8;
-  padding: 2px 6px;
-  border-radius: 5px;
-  font-size: 0.95em;
-}
-
 .markdown-output blockquote {
-  margin: 20px 0;
-  padding: 16px 18px;
+  margin: 22px 0;
+  padding: 20px 22px;
   background: #fff7ed;
   border: 2px solid #fbbf24;
-  border-left: 8px solid #f59e0b;
-  border-radius: 10px;
+  border-left: 9px solid #f59e0b;
+  border-radius: 12px;
   color: #1e293b;
   font-weight: 500;
   page-break-inside: avoid;
 }
 
 .markdown-output blockquote p {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.markdown-output blockquote ul {
+  margin-bottom: 14px;
 }
 
 .markdown-output blockquote strong {
@@ -352,11 +346,6 @@ button {
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
   page-break-inside: avoid;
   table-layout: fixed;
-}
-
-.markdown-output thead {
-  background: #1e3a8a;
-  color: white;
 }
 
 .markdown-output th {
@@ -381,10 +370,6 @@ button {
   background: #f8fafc;
 }
 
-.markdown-output tr:nth-child(odd) td {
-  background: #ffffff;
-}
-
 .katex-display {
   overflow-x: auto;
   overflow-y: hidden;
@@ -401,16 +386,69 @@ button {
   font-size: 1.22em;
 }
 
-/* Formula Sheet Layout */
+/* Source images from uploaded PDF */
+
+.source-images-section {
+  margin-top: 34px;
+  padding-top: 10px;
+}
+
+.source-images-section h2 {
+  font-size: 26px;
+  color: #1e3a8a;
+  margin: 28px 0 12px;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, #dbeafe, #ffffff);
+  border-left: 7px solid #1d4ed8;
+  border-radius: 8px;
+}
+
+.source-image-note {
+  color: #475569;
+  font-size: 15px;
+  margin-bottom: 18px;
+}
+
+.source-image-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.source-image-card {
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 14px;
+  background: #f8fafc;
+  text-align: center;
+  page-break-inside: avoid;
+}
+
+.source-image-card img {
+  max-width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: white;
+}
+
+.source-image-card p {
+  margin-top: 10px;
+  color: #475569;
+  font-size: 14px;
+}
+
+/* Formula Sheet */
 
 .formula-sheet-mode {
-  padding: 24px 28px;
-  width: 100%;
+  padding: 22px 24px;
+  width: 1300px;
+  max-width: none;
 }
 
 .formula-sheet-mode .pdf-header {
-  margin-bottom: 20px;
-  padding: 18px;
+  margin-bottom: 18px;
+  padding: 16px;
 }
 
 .formula-sheet-output {
@@ -419,27 +457,27 @@ button {
 
 .formula-sheet-title {
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .formula-sheet-title h1 {
-  font-size: 40px;
+  font-size: 36px;
   color: #0f2a6b;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.6px;
 }
 
 .formula-sheet-title p,
 .formula-sheet-title strong {
-  font-size: 18px;
+  font-size: 16px;
   color: #4c1d95;
 }
 
 .formula-card-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
   align-items: stretch;
 }
 
@@ -449,13 +487,14 @@ button {
   padding: 12px;
   background: #ffffff;
   page-break-inside: avoid;
-  min-height: 230px;
+  min-height: 255px;
+  overflow: hidden;
 }
 
 .formula-card h2 {
-  font-size: 15.5px;
+  font-size: 16px;
   margin-bottom: 8px;
-  padding: 7px 9px;
+  padding: 8px 9px;
   border-radius: 8px;
   color: white;
   background: #1e40af;
@@ -470,7 +509,7 @@ button {
 }
 
 .formula-card p {
-  font-size: 11.5px;
+  font-size: 11.8px;
   line-height: 1.45;
   margin-bottom: 6px;
 }
@@ -482,27 +521,30 @@ button {
 }
 
 .formula-card li {
-  font-size: 11.5px;
+  font-size: 11.8px;
   margin-bottom: 3px;
 }
 
 .formula-card .katex {
-  font-size: 0.95em;
+  font-size: 0.9em;
 }
 
 .formula-card .katex-display {
-  margin: 8px auto;
-  padding: 6px;
+  margin: 6px auto;
+  padding: 5px;
 }
 
 .formula-card table {
   font-size: 10.5px;
   margin: 8px 0;
+  width: 100%;
+  table-layout: fixed;
 }
 
 .formula-card th,
 .formula-card td {
-  padding: 5px;
+  padding: 4px;
+  word-break: break-word;
 }
 
 .formula-card blockquote {
@@ -563,22 +605,6 @@ button {
   background: #be185d;
 }
 
-.card-color-7 {
-  border-color: #ca8a04;
-}
-
-.card-color-7 h2 {
-  background: #a16207;
-}
-
-.card-color-8 {
-  border-color: #475569;
-}
-
-.card-color-8 h2 {
-  background: #334155;
-}
-
 .quick-formula-strip {
   margin-top: 14px;
   padding: 12px;
@@ -599,6 +625,7 @@ button {
   width: 100%;
   font-size: 12px;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .quick-formula-strip th {
@@ -610,9 +637,8 @@ button {
 .quick-formula-strip th {
   padding: 7px;
   border: 1px solid #f59e0b;
+  word-break: break-word;
 }
-
-/* Mobile */
 
 @media (max-width: 768px) {
   .app {
@@ -621,8 +647,6 @@ button {
 
   .hero h1 {
     font-size: 42px;
-    line-height: 1.2;
-    padding-bottom: 6px;
   }
 
   .subtitle {
@@ -654,37 +678,20 @@ button {
     padding: 24px;
   }
 
-  .pdf-header h2 {
-    font-size: 26px;
-  }
-
   .markdown-output {
     font-size: 16px;
   }
 
-  .markdown-output h1 {
-    font-size: 28px;
-  }
-
-  .markdown-output h2 {
-    font-size: 23px;
-  }
-
-  .markdown-output h3 {
-    font-size: 20px;
-  }
-
-  .markdown-output table {
-    font-size: 13px;
-  }
-
-  .markdown-output th,
-  .markdown-output td {
-    padding: 8px;
+  .source-image-grid {
+    grid-template-columns: 1fr;
   }
 
   .formula-card-grid {
     grid-template-columns: 1fr;
+  }
+
+  .formula-sheet-mode {
+    width: 100%;
   }
 
   .formula-sheet-title h1 {

@@ -4,8 +4,14 @@ import pdfplumber
 import os
 import time
 import re
+import base64
 from dotenv import load_dotenv
 from groq import Groq
+
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    fitz = None
 
 load_dotenv()
 
@@ -23,6 +29,7 @@ MODEL_NAME = "llama-3.1-8b-instant"
 
 MAX_CHUNK_CHARS = 3500
 MAX_CHUNKS = 6
+MAX_SOURCE_IMAGES = 4
 
 
 COMMON_RULES = """
@@ -36,18 +43,6 @@ GENERAL RULES:
 - Do not repeat the same points again and again.
 - Do not add irrelevant formulas from other subjects.
 - Only use formulas, concepts, examples, and diagrams that match the uploaded PDF content.
-
-BOX FORMAT:
-Use blockquotes only when needed.
-
-For notes:
-> **Note:** Write the important exam tip here.
-
-For exam questions:
-> **Exam Question:** Write the question here.
-
-For diagrams:
-> **Diagram to draw:** Describe the diagram clearly with labels.
 
 TABLE RULES:
 - Use proper Markdown tables only when the content is truly tabular.
@@ -122,6 +117,64 @@ def create_chunks_from_pdf(file_path):
     return chunks
 
 
+def extract_source_images(file_path):
+    """
+    Extracts real embedded images from the uploaded PDF.
+    If the PDF has no embedded images, it returns an empty list.
+    """
+    images = []
+
+    if fitz is None:
+        return images
+
+    try:
+        doc = fitz.open(file_path)
+
+        for page_index in range(len(doc)):
+            if len(images) >= MAX_SOURCE_IMAGES:
+                break
+
+            page = doc[page_index]
+            page_images = page.get_images(full=True)
+
+            for img_index, img in enumerate(page_images):
+                if len(images) >= MAX_SOURCE_IMAGES:
+                    break
+
+                xref = img[0]
+
+                try:
+                    pix = fitz.Pixmap(doc, xref)
+
+                    if pix.n >= 5:
+                        pix = fitz.Pixmap(fitz.csRGB, pix)
+
+                    image_bytes = pix.tobytes("png")
+
+                    # Skip very tiny icons/logos
+                    if len(image_bytes) < 8000:
+                        continue
+
+                    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+
+                    images.append({
+                        "page": page_index + 1,
+                        "src": f"data:image/png;base64,{image_base64}"
+                    })
+
+                    pix = None
+
+                except Exception:
+                    continue
+
+        doc.close()
+
+    except Exception:
+        return []
+
+    return images
+
+
 def create_prompt(text, output_type):
     if output_type == "Summary":
         return create_summary_prompt(text)
@@ -154,7 +207,7 @@ IMPORTANT:
 - Do not make short sections.
 - Explain every topic clearly.
 - Add examples wherever possible.
-- Add at least 12 to 18 quick revision points.
+- Add tables wherever useful.
 - Do not add irrelevant content outside the PDF topic.
 
 STRICT SUMMARY FORMAT:
@@ -184,13 +237,7 @@ Write all formulas, laws, rules, expressions, or theorems present in the PDF.
 Use display math for important formulas.
 
 ### 6. Important Tables
-Use tables for:
-- Comparisons
-- Truth tables
-- Laws
-- Gates
-- Properties
-- Classifications
+Use tables for comparisons, truth tables, laws, gates, properties, or classifications.
 
 ### 7. Solved / Explanation Examples
 Add solved examples if present.
@@ -199,21 +246,38 @@ Given:
 Solution:
 Final Answer:
 
-### 8. Diagram to Draw
-> **Diagram to draw:** Mention diagrams students should practice.
+### 8. Exam Revision Box
+Put all notes, diagram points, exam questions, and revision points inside ONE single blockquote box.
 
-### 9. Short Exam Notes
-> **Note:** Add exam tips and common mistakes.
+Use exactly this style:
 
-### 10. Quick Revision Points
-Give 12 to 18 quick revision points.
+> **Important Notes:**
+> - Point 1
+> - Point 2
+> - Point 3
+>
+> **Diagrams to Practice:**
+> - Diagram 1
+> - Diagram 2
+>
+> **Important Exam Questions:**
+> - Question 1
+> - Question 2
+>
+> **Quick Revision Points:**
+> - Revision point 1
+> - Revision point 2
+> - Revision point 3
 
 DO NOT:
+- Do not create many separate note boxes.
+- Do not create many separate diagram boxes.
+- Do not create many separate revision boxes.
 - Do not create 2-mark, 5-mark, 10-mark sections.
 - Do not create MCQs.
 - Do not create a question bank.
 - Do not write headings like "Formula Below".
-- Do not write "Long Formulas" as a separate awkward section.
+- Do not write "Long Formulas".
 - Do not keep the summary under 5 pages.
 
 {COMMON_RULES}
@@ -375,18 +439,23 @@ def create_formula_sheet_prompt(text):
     return f"""
 Create ONLY a COMPACT 16:9 FORMULA SHEET from the PDF content.
 
-This should look like a formula cheat sheet, not normal notes.
+This should look like a professional cheat sheet, not normal notes.
 
 IMPORTANT:
 - Use dense card-based sections.
-- Each card should contain formulas, laws, rules, truth tables, diagram hints, and exam use.
+- Each card should contain compact formulas, laws, rules, truth tables, diagram hints, and exam use.
 - Do not write long paragraphs.
 - Do not create generic cards if specific cards are possible.
 - Use only formulas/laws/rules from the uploaded PDF.
 - Do not add unrelated formulas.
+- Keep every card balanced and compact.
+- Avoid very large cards.
+- If one topic is too large, split it into two smaller cards.
 
 For Digital Electronics, prefer cards like:
 - Basic Logic Gates
+- NOT / Inverter Gate
+- AND / OR Gates
 - Universal Gates
 - Boolean Laws
 - De Morgan's Theorems
@@ -405,23 +474,18 @@ STRICT FORMULA SHEET FORMAT:
 
 **Diagram:** Short diagram instruction if required.
 
-**Main Formula / Rule:**
-
-$$
-formula here
-$$
+**Formula / Rule:**
+- Short formula or rule 1
+- Short formula or rule 2
 
 **Important Points:**
 - Point 1
 - Point 2
 - Point 3
-- Point 4
 
-**Truth Table / Law Table:** Add if useful.
+**Exam Use:** One short line.
 
-**Exam Use:** Where this formula/rule is used.
-
-> **Note:** Short exam tip.
+> **Note:** One short exam tip.
 
 ## CARD 2: Specific Topic Name
 
@@ -437,6 +501,7 @@ RULES:
 - Generate 8 to 10 compact cards if enough content is available.
 - Each card must be compact.
 - Use tables for truth tables, Boolean laws, comparisons, or properties.
+- Do not create huge law cards.
 - Do not create Summary sections.
 - Do not create Important Questions sections.
 - Do not create MCQs.
@@ -582,29 +647,28 @@ PDF Part {chunk_number}/{total_chunks}:
         return f"""
 You are reading part {chunk_number} of {total_chunks} from a college PDF.
 
-Extract ONLY formula-sheet material.
+Extract ONLY compact formula-sheet material.
 
 Return compact cards:
 ## CARD: Specific Topic Name
 
-**Main Formula / Rule:**
-
-$$
-formula here
-$$
+**Formula / Rule:**
+- Short formula or rule 1
+- Short formula or rule 2
 
 **Important Points:**
 - Point 1
 - Point 2
 - Point 3
 
-**Truth Table / Law Table:** Add if useful.
+**Truth Table / Law Table:** Add only if useful.
 
-**Exam Use:** Usage.
+**Exam Use:** One short line.
 
 Do not write long notes.
 Do not create question answers.
 Prefer specific cards over generic cards.
+Avoid huge cards.
 
 {COMMON_RULES}
 
@@ -656,21 +720,43 @@ STRICT FINAL SUMMARY FORMAT:
 ### 5. Important Formulas / Laws / Rules
 ### 6. Important Tables
 ### 7. Solved / Explanation Examples
-### 8. Diagram to Draw
-### 9. Short Exam Notes
-### 10. Quick Revision Points
+### 8. Exam Revision Box
 
 Rules:
 - Target 1600 to 2200 words if enough content is available.
 - Add enough explanation under each heading.
 - Explain subtopics properly.
 - Use clean solved example format: Given, Solution, Final Answer.
+- For section 8, put all notes, diagrams, exam questions, and revision points inside ONE single blockquote box.
+- Do not create many separate yellow/orange boxes.
 - Do not create 2-mark, 5-mark, 10-mark sections.
 - Do not create a question bank.
 - Do not create MCQs.
 - Do not write "Formula Below".
 - Do not write "Long Formulas".
 - Remove repetition.
+
+Use this exact style for Section 8:
+
+### 8. Exam Revision Box
+
+> **Important Notes:**
+> - Point 1
+> - Point 2
+> - Point 3
+>
+> **Diagrams to Practice:**
+> - Diagram 1
+> - Diagram 2
+>
+> **Important Exam Questions:**
+> - Question 1
+> - Question 2
+>
+> **Quick Revision Points:**
+> - Revision point 1
+> - Revision point 2
+> - Revision point 3
 
 {COMMON_RULES}
 
@@ -807,7 +893,7 @@ Partial MCQs:
         return f"""
 Combine the partial formula material into one final COMPACT 16:9 FORMULA SHEET.
 
-The output must look like a cheat sheet with multiple compact cards.
+The output must look like a clean cheat sheet with multiple compact cards.
 
 STRICT FINAL FORMULA SHEET FORMAT:
 
@@ -819,27 +905,24 @@ STRICT FINAL FORMULA SHEET FORMAT:
 
 **Diagram:** Short diagram instruction if needed.
 
-**Main Formula / Rule:**
-
-$$
-formula here
-$$
+**Formula / Rule:**
+- Short formula or rule 1
+- Short formula or rule 2
 
 **Important Points:**
 - Point 1
 - Point 2
 - Point 3
-- Point 4
 
-**Truth Table / Law Table:** Add if useful.
+**Truth Table / Law Table:** Add only if useful.
 
-**Exam Use:** Usage.
+**Exam Use:** One short line.
 
-> **Note:** Short exam tip.
+> **Note:** One short exam tip.
 
 ## CARD 2: Specific Topic Name
 
-Continue same format.
+Continue same compact format.
 
 ## QUICK FORMULAS / LAWS
 
@@ -851,6 +934,8 @@ Rules:
 - Generate 8 to 10 compact cards if content allows.
 - Keep every card compact.
 - Prefer specific cards over generic cards.
+- Split large topics into smaller cards.
+- Do not create very large cards.
 - Use tables for truth tables, Boolean laws, formula summaries, and comparisons.
 - Do not create summary paragraphs.
 - Do not create question bank.
@@ -1124,8 +1209,8 @@ def clean_ai_output(text, output_type):
     text = remove_broken_pipe_lines(text)
 
     if output_type == "Summary":
-        text = re.sub(r"(?i)^#+\\s*formula below\\s*$", "", text, flags=re.MULTILINE)
-        text = re.sub(r"(?i)^#+\\s*long formulas\\s*$", "", text, flags=re.MULTILINE)
+        text = re.sub(r"(?i)^#+\s*formula below\s*$", "", text, flags=re.MULTILINE)
+        text = re.sub(r"(?i)^#+\s*long formulas\s*$", "", text, flags=re.MULTILINE)
 
     text = re.sub(r"\n{4,}", "\n\n\n", text)
 
@@ -1190,7 +1275,7 @@ def process_pdf_chunks(chunks, output_type):
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
-        "message": "ExamEase AI backend is running with improved summary and formula sheet quality"
+        "message": "ExamEase AI backend is running with source image extraction and improved layouts"
     })
 
 
@@ -1212,9 +1297,14 @@ def upload_pdf():
         chunks = create_chunks_from_pdf(file_path)
         ai_output = process_pdf_chunks(chunks, output_type)
 
+        source_images = []
+        if output_type == "Summary":
+            source_images = extract_source_images(file_path)
+
         return jsonify({
             "message": "AI notes generated successfully",
-            "text": ai_output
+            "text": ai_output,
+            "images": source_images
         })
 
     except Exception as e:

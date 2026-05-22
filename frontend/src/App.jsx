@@ -14,6 +14,7 @@ function App() {
   const [result, setResult] = useState(
     "Your AI-generated notes will appear here."
   );
+  const [sourceImages, setSourceImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
 
@@ -99,6 +100,7 @@ function App() {
       setLoading(true);
       setLoadingText("Reading your PDF...");
       setResult("Please wait while AI creates your notes.");
+      setSourceImages([]);
 
       setTimeout(() => setLoadingText("Extracting important concepts..."), 1200);
       setTimeout(() => setLoadingText("Creating exam-ready output..."), 2500);
@@ -123,6 +125,7 @@ function App() {
         setResult("Error: " + data.error);
       } else {
         setResult(cleanMathOutput(data.text));
+        setSourceImages(data.images || []);
       }
     } catch (error) {
       setResult(
@@ -159,8 +162,9 @@ function App() {
         if (clonedElement) {
           clonedElement.style.background = "#ffffff";
           clonedElement.style.color = "#1e293b";
-          clonedElement.style.width = isFormulaSheet ? "1550px" : "1000px";
+          clonedElement.style.width = isFormulaSheet ? "1300px" : "1000px";
           clonedElement.style.borderRadius = "0";
+          clonedElement.style.overflow = "visible";
         }
       },
     });
@@ -221,6 +225,7 @@ function App() {
     setPdfFile(null);
     setOutputType("Summary");
     setResult("Your AI-generated notes will appear here.");
+    setSourceImages([]);
     setLoading(false);
     setLoadingText("");
 
@@ -229,6 +234,30 @@ function App() {
     if (fileInput) {
       fileInput.value = "";
     }
+  };
+
+  const renderSourceImages = () => {
+    if (outputType !== "Summary" || sourceImages.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="source-images-section">
+        <h2>Source Diagrams / Images</h2>
+        <p className="source-image-note">
+          Images extracted from your uploaded PDF for better visual revision.
+        </p>
+
+        <div className="source-image-grid">
+          {sourceImages.map((image, index) => (
+            <div className="source-image-card" key={index}>
+              <img src={image.src} alt={`Source visual from page ${image.page}`} />
+              <p>Source PDF page {image.page}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   const renderNormalOutput = () => {
@@ -240,26 +269,20 @@ function App() {
         >
           {result}
         </ReactMarkdown>
+
+        {renderSourceImages()}
       </div>
     );
   };
 
   const renderFormulaSheetOutput = () => {
-    const parts = result.split(/(?=^## CARD\s*\d*[:.-])/m);
+    const quickSplit = result.split(/(?=^## QUICK FORMULAS|^## QUICK LAWS|^## QUICK FORMULAS \/ LAWS)/m);
+    const mainFormulaText = quickSplit[0] || "";
+    const quickSection = quickSplit.slice(1).join("\n\n");
+
+    const parts = mainFormulaText.split(/(?=^## CARD\s*\d*[:.-])/m);
     const intro = parts[0] || "";
     const cards = parts.slice(1);
-
-    const quickIndex = cards.findIndex((card) =>
-      card.toLowerCase().includes("quick formulas")
-    );
-
-    let formulaCards = cards;
-    let quickSection = "";
-
-    if (quickIndex !== -1) {
-      quickSection = cards.slice(quickIndex).join("\n\n");
-      formulaCards = cards.slice(0, quickIndex);
-    }
 
     return (
       <div className="formula-sheet-output">
@@ -273,9 +296,9 @@ function App() {
         </div>
 
         <div className="formula-card-grid">
-          {formulaCards.map((card, index) => (
+          {cards.map((card, index) => (
             <div
-              className={`formula-card card-color-${(index % 8) + 1}`}
+              className={`formula-card card-color-${(index % 6) + 1}`}
               key={index}
             >
               <ReactMarkdown
@@ -371,7 +394,7 @@ function App() {
         </div>
       </div>
 
-      <div className="result-box">
+      <div className={`result-box ${outputType === "Formula Sheet" ? "formula-result-box" : ""}`}>
         <div
           className={`pdf-content ${
             outputType === "Formula Sheet" ? "formula-sheet-mode" : ""
